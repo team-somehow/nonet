@@ -90,65 +90,139 @@ export default function App(): JSX.Element {
     appendLog("Advertising payload: " + payloadText);
 
     try {
-      const payloadBytes = new TextEncoder().encode(payloadText);
-      let b64: string;
-      try {
-        b64 = (base64 as any).encodeFromByteArray
-          ? (base64 as any).encodeFromByteArray(payloadBytes)
-          : base64.encode(String.fromCharCode(...payloadBytes));
-      } catch (e) {
-        b64 = base64.encode(String.fromCharCode(...payloadBytes));
-      }
-
-      // Support multiple API names across versions
       const adv: any = BleAdvertiser;
+      const payloadBytes = new TextEncoder().encode(payloadText); // Uint8Array
+      const byteArray = Array.from(payloadBytes); // [72,69,76,76,79]
+      const b64 = base64.encode(String.fromCharCode(...payloadBytes));
 
-      // Debug: Log available methods
       appendLog(
         "BleAdvertiser methods: " + Object.getOwnPropertyNames(adv).join(", ")
       );
 
-      if (adv && adv.startAdvertising) {
-        // Use startAdvertising as it's more reliable
-        adv.startAdvertising(b64, {
-          manufacturerId: 0xffff,
-          connectable: false,
-        });
-      } else if (adv && adv.start) {
-        adv.start(b64);
-      } else if (adv && adv.broadcast) {
-        // Try broadcast with 3 required parameters (string, array, manufacturerId)
-        try {
-          adv.broadcast(
-            b64, // First argument: base64 string
-            [], // Second argument: array (not object!)
-            0xffff // Third argument: manufacturer ID
-          );
-        } catch (e) {
-          appendLog("Broadcast error: " + (e as any)?.message);
+      // setCompanyId if available (some versions require this)
+      try {
+        if (adv && adv.setCompanyId) {
+          adv.setCompanyId(0xffff);
+          appendLog("setCompanyId(0xffff) called");
         }
-      } else if (adv && adv.setCompanyId && adv.broadcastChunk) {
-        // Try alternative API for newer versions
-        try {
-          const byteArray = Array.from(payloadBytes);
-          adv.broadcastChunk(byteArray);
-        } catch (e) {
-          appendLog("BroadcastChunk error: " + (e as any)?.message);
-        }
-      } else {
-        appendLog(
-          "No known BleAdvertiser method found. Available methods: " +
-            Object.getOwnPropertyNames(adv).join(", ")
-        );
-        Alert.alert(
-          "Advertiser missing",
-          "BleAdvertiser API not available in this build."
-        );
-        return;
+      } catch (e: any) {
+        appendLog("setCompanyId error: " + (e?.message || e));
       }
 
-      appendLog("Started advertising HELLO (check other device)");
-      setMode("advertising");
+      // Helper: try a call and return true on success
+      const tryCall = async (desc: string, fn: () => any) => {
+        appendLog(`Trying: ${desc}`);
+        try {
+          const res = fn();
+          // handle promise-returning native methods
+          if (res && typeof res.then === "function") await res;
+          appendLog(`Success: ${desc}`);
+          return true;
+        } catch (err: any) {
+          appendLog(`Failed: ${desc} -> ${err?.message ?? String(err)}`);
+          return false;
+        }
+      };
+
+      // 1) Preferred: startAdvertising(base64, options)
+      if (adv && adv.startAdvertising) {
+        const ok1 = await tryCall("startAdvertising(base64, options)", () =>
+          adv.startAdvertising(b64, {
+            manufacturerId: 0xffff,
+            connectable: false,
+          })
+        );
+        if (ok1) {
+          setMode("advertising");
+          return;
+        }
+      }
+
+      // Build a deterministic UUID-like string from payload bytes (safe fallback)
+      const hex = byteArray
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("")
+        .padEnd(32, "0")
+        .slice(0, 32);
+      const uuidLike = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(
+        12,
+        16
+      )}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+
+      // 2) Try broadcast with string UUID as first arg: broadcast(uuidString, [bytes], options)
+      if (adv && adv.broadcast) {
+        const ok2 = await tryCall(
+          "broadcast(uuidString, byteArray, options)",
+          () =>
+            adv.broadcast(uuidLike, byteArray, {
+              connectable: false,
+              includeDeviceName: false,
+            })
+        );
+        if (ok2) {
+          setMode("advertising");
+          return;
+        }
+
+        // 3) Try broadcast with array-first signature (README style): broadcast([uuid], [bytes], options)
+        const ok3 = await tryCall("broadcast([uuid], byteArray, options)", () =>
+          adv.broadcast([uuidLike], byteArray, {
+            connectable: false,
+            includeDeviceName: false,
+          })
+        );
+        if (ok3) {
+          setMode("advertising");
+          return;
+        }
+
+        // 4) Try broadcast with base64 single-arg (some versions accept base64 string)
+        const ok4 = await tryCall("broadcast(base64String)", () =>
+          adv.broadcast(b64)
+        );
+        if (ok4) {
+          setMode("advertising");
+          return;
+        }
+
+        // 5) Try broadcast([], byteArray, options) (some docs/examples)
+        const ok5 = await tryCall("broadcast([], byteArray, options)", () =>
+          adv.broadcast([], byteArray, { connectable: false })
+        );
+        if (ok5) {
+          setMode("advertising");
+          return;
+        }
+      }
+
+      // 6) Try broadcastChunk if available (raw bytes)
+      if (adv && adv.broadcastChunk) {
+        const ok6 = await tryCall("broadcastChunk(byteArray)", () =>
+          adv.broadcastChunk(byteArray)
+        );
+        if (ok6) {
+          setMode("advertising");
+          return;
+        }
+      }
+
+      // 7) Fallback: start(base64)
+      if (adv && adv.start) {
+        const ok7 = await tryCall("start(base64)", () => adv.start(b64));
+        if (ok7) {
+          setMode("advertising");
+          return;
+        }
+      }
+
+      // nothing succeeded
+      appendLog(
+        "All advertise attempts failed. See above logs for native errors."
+      );
+      Alert.alert(
+        "Advertise failed",
+        "All advertise attempts failed — check logs for details."
+      );
     } catch (e: any) {
       appendLog("Advertise error: " + (e?.message || e));
       console.error(e);

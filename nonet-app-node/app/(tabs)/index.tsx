@@ -15,6 +15,10 @@ import base64 from 'react-native-base64';
 
 const logNow = (...args: any[]) => console.log('[BLEPOC]', ...args);
 
+// Hardcoded BLE Service and Characteristic UUIDs
+const NONET_SERVICE_UUID = '12345678-1234-5678-9abc-123456789012';
+const NONET_CHARACTERISTIC_UUID = '87654321-4321-8765-cba9-210987654321';
+
 type LogItem = { id: string; text: string };
 
 let logCounter = 0; // Add a counter to ensure unique keys
@@ -109,26 +113,20 @@ export default function App(): JSX.Element {
         appendLog('setCompanyId error: ' + (e?.message || e));
       }
 
-      // Build a deterministic UUID-like string from payload bytes (safe fallback)
-      const hex = byteArray
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('')
-        .padEnd(32, '0')
-        .slice(0, 32);
-      const uuidLike = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(
-        12,
-        16
-      )}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-
-      // Use the working method: broadcast(uuidString, byteArray, options)
+      // Use the working method: broadcast with service UUID
       if (adv && adv.broadcast) {
-        appendLog('Starting broadcast with UUID string method...');
+        appendLog(
+          `Starting broadcast with service UUID: ${NONET_SERVICE_UUID}`
+        );
+        appendLog(`Payload: ${payloadText}`);
+
         try {
-          await adv.broadcast(uuidLike, byteArray, {
+          await adv.broadcast(NONET_SERVICE_UUID, byteArray, {
             connectable: false,
             includeDeviceName: false,
+            includeTxPowerLevel: false,
           });
-          appendLog('🎉 Broadcasting successfully started!');
+          appendLog('🎉 Broadcasting successfully started with service UUID!');
           setMode('advertising');
           return;
         } catch (err: any) {
@@ -167,15 +165,17 @@ export default function App(): JSX.Element {
   function startScan() {
     requestPermissionsOrFail().then((ok) => {
       if (!ok) return;
-      appendLog('Start scanning...');
+      appendLog(`Start scanning for service UUID: ${NONET_SERVICE_UUID}`);
       const manager = managerRef.current;
       if (!manager) {
         appendLog('Ble manager not initialized');
         return;
       }
       stopScan();
+
+      // Filter by our specific service UUID
       manager.startDeviceScan(
-        null,
+        [NONET_SERVICE_UUID],
         { allowDuplicates: true },
         (error, device) => {
           if (error) {
@@ -184,33 +184,109 @@ export default function App(): JSX.Element {
           }
           if (!device) return;
 
-          // manufacturerData is base64 string when present
-          const md = (device as Device & any).manufacturerData;
-          if (md) {
-            try {
-              const decoded = base64.decode(md);
-              // appendLog(
-              //   `Received manuf adv from ${device.id}: "${decoded}" rssi=${device.rssi}`
-              // );
-              if (decoded.includes('abadaba')) {
-                appendLog('HELLO received — stopping scan');
-                stopScan();
-              }
-            } catch (e) {
-              appendLog('Decode error: ' + (e as any)?.message);
+          appendLog(`Found NoNet device: ${device.id} rssi=${device.rssi}`);
+
+          // Check if device has our service
+          if (
+            device.serviceUUIDs &&
+            device.serviceUUIDs.includes(NONET_SERVICE_UUID)
+          ) {
+            appendLog(`✅ Device ${device.id} has NoNet service!`);
+
+            // Try to read the characteristic data
+            if (device.isConnectable) {
+              appendLog(`Attempting to connect to ${device.id}...`);
+              connectAndReadCharacteristic(device);
+            } else {
+              appendLog(
+                `Device ${device.id} is not connectable, checking advertisement data`
+              );
+              // Check advertisement data for our payload
+              checkAdvertisementData(device);
             }
-          } else if (device.localName) {
-            appendLog(
-              `Found device localName=${device.localName} id=${device.id}`
-            );
           } else {
-            appendLog(`Found device id=${device.id} rssi=${device.rssi}`);
+            appendLog(
+              `Device ${device.id} found but doesn't advertise our service`
+            );
           }
         }
       );
 
       setMode('scanning');
     });
+  }
+
+  // Helper function to connect and read characteristic
+  async function connectAndReadCharacteristic(device: Device) {
+    const manager = managerRef.current;
+    if (!manager) return;
+
+    try {
+      appendLog(`Connecting to ${device.id}...`);
+      const connectedDevice = await manager.connectToDevice(device.id);
+      appendLog(`Connected! Discovering services...`);
+
+      const deviceWithServices =
+        await connectedDevice.discoverAllServicesAndCharacteristics();
+      appendLog(`Services discovered, reading characteristic...`);
+
+      const characteristic =
+        await deviceWithServices.readCharacteristicForService(
+          NONET_SERVICE_UUID,
+          NONET_CHARACTERISTIC_UUID
+        );
+
+      if (characteristic.value) {
+        const decoded = base64.decode(characteristic.value);
+        appendLog(`📡 Characteristic data received: "${decoded}"`);
+
+        if (decoded.includes('abadaba')) {
+          appendLog('🎉 HELLO received via characteristic — stopping scan');
+          stopScan();
+        }
+      }
+
+      // Disconnect after reading
+      await connectedDevice.cancelConnection();
+      appendLog(`Disconnected from ${device.id}`);
+    } catch (error: any) {
+      appendLog(`Connection/read error: ${error?.message || error}`);
+    }
+  }
+
+  // Helper function to check advertisement data
+  function checkAdvertisementData(device: Device) {
+    // Check service data for our service UUID
+    const serviceData = (device as any).serviceData;
+    if (serviceData && serviceData[NONET_SERVICE_UUID]) {
+      try {
+        const decoded = base64.decode(serviceData[NONET_SERVICE_UUID]);
+        appendLog(`📡 Service data received: "${decoded}"`);
+
+        if (decoded.includes('abadaba')) {
+          appendLog('🎉 HELLO received via service data — stopping scan');
+          stopScan();
+        }
+      } catch (e) {
+        appendLog('Service data decode error: ' + (e as any)?.message);
+      }
+    }
+
+    // Fallback: check manufacturer data
+    const md = (device as Device & any).manufacturerData;
+    if (md) {
+      try {
+        const decoded = base64.decode(md);
+        appendLog(`📡 Manufacturer data: "${decoded}"`);
+
+        if (decoded.includes('abadaba')) {
+          appendLog('🎉 HELLO received via manufacturer data — stopping scan');
+          stopScan();
+        }
+      } catch (e) {
+        appendLog('Manufacturer data decode error: ' + (e as any)?.message);
+      }
+    }
   }
 
   function stopScan() {

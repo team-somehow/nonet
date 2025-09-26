@@ -17,6 +17,8 @@ const logNow = (...args: any[]) => console.log("[BLEPOC]", ...args);
 
 type LogItem = { id: string; text: string };
 
+let logCounter = 0; // Add a counter to ensure unique keys
+
 export default function App(): JSX.Element {
   const [mode, setMode] = useState<"idle" | "advertising" | "scanning">("idle");
   const [logs, setLogs] = useState<LogItem[]>([]);
@@ -43,7 +45,7 @@ export default function App(): JSX.Element {
   }, []);
 
   const appendLog = (t: string) => {
-    const item = { id: Date.now().toString(), text: t };
+    const item = { id: `${Date.now()}-${logCounter++}`, text: t }; // Use timestamp + counter for unique keys
     setLogs((p) => [item, ...p].slice(0, 200));
     logNow(t);
   };
@@ -101,8 +103,10 @@ export default function App(): JSX.Element {
       // Support multiple API names across versions
       const adv: any = BleAdvertiser;
       if (adv && adv.broadcast) {
+        // Convert base64 string to byte array for the broadcast method
+        const byteArray = Array.from(payloadBytes);
         adv.broadcast(
-          b64,
+          byteArray,
           {
             advertisedServiceUuid: null,
             manufacturerId: 0xffff,

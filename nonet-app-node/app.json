@@ -8,9 +8,6 @@
     "scheme": "nonetappnode",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
       "package": "com.nonet.app",
       "adaptiveIcon": {
@@ -45,6 +42,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c94f2cc8-cacd-4b45-8561-15d6bb19481f"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.nonet.app"
     }
   }
 }

@@ -1,112 +1,240 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { JSX, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  FlatList, // Included to show logs (since your old component used it)
+  Platform,
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
+import BackgroundService from 'react-native-background-actions';
+import base64 from "react-native-base64";
+import { BleManager, Device } from "react-native-ble-plx";
+import { PERMISSIONS, request, RESULTS } from "react-native-permissions"; // 🚨 NEW: Permission library
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+// --- CONSTANTS ---
+const logNow = (...args: any[]) => console.log("[BLEPOC]", ...args);
+type LogItem = { id: string; text: string };
+let logCounter = 0;
 
-export default function TabTwoScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
-  );
+const API_URL = 'https://ea2ea87b756d.ngrok-free.app/api/test-post';
+const TASK_NAME = 'BLE_SCANNER_TASK';
+
+
+// --- HELPER FUNCTIONS (API and Configuration) ---
+
+async function sendApiPost(message) {
+  try {
+    const now = new Date().toISOString();
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        receivedMessage: message,
+        timestamp: now
+      }),
+    });
+    console.log(`[BG ACTION] API Success: ${response.ok}`);
+  } catch (error) {
+    console.error(`[BG ACTION] API Failed: ${error}`);
+  }
 }
 
-const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+// --- 1. THE CONTINUOUS BACKGROUND TASK ---
+const bleScanTask = async (taskData) => {
+  const manager = new BleManager();
+  const sleep = (time) => new Promise(resolve => setTimeout(resolve, time));
+
+  try {
+    await new Promise(async (resolve) => {
+      while (BackgroundService.isRunning()) {
+        console.log("[BG ACTION] Service is awake. Starting 10s scan.");
+        let isHelloReceived = false;
+
+        manager.startDeviceScan(
+          null,
+          { allowDuplicates: true },
+          async (error, device) => {
+            if (error) {
+              // This is the error line where the "not authorized" message originates
+              console.error("[BLE/SCAN] Scan error in headless task:", error.message);
+              // Handle the error gracefully without killing the loop instantly
+              manager.stopDeviceScan();
+              return;
+            }
+            if (!device || isHelloReceived) return;
+
+            const md = (device as Device & any).manufacturerData;
+            if (md) {
+              try {
+                const decoded = base64.decode(md);
+                if (decoded.includes("HELLO")) {
+                  isHelloReceived = true;
+                  console.log(`[BG ACTION] HELLO received from ${device.id}.`);
+
+                  await sendApiPost("HELLO");
+
+                  manager.stopDeviceScan();
+                }
+              } catch (e) {
+                console.error("[BG ACTION] Decode error:", (e as any)?.message);
+              }
+            }
+          }
+        );
+
+        await sleep(10000); // Scan for 10 seconds
+        manager.stopDeviceScan();
+
+        await sleep(5000); // Pause for 5 seconds before next cycle
+      }
+      resolve();
+    });
+  } finally {
+    manager.destroy();
+  }
+};
+
+
+// RNBA Options (This is used to create the persistent notification)
+const options = {
+  taskName: TASK_NAME,
+  taskTitle: 'Continuous BLE Monitoring',
+  taskDesc: 'Scanning for HELLO signal in the background.',
+  taskIcon: {
+    name: 'ic_launcher',
+    type: 'mipmap',
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-});
+  taskColor: '#00AA00',
+  taskCritical: true,
+  taskNotificationId: 1001,
+  taskAllowStart: true,
+  taskAllowRestart: true,
+  taskAutoRestart: true,
+  parameters: { delay: 0 },
+};
+
+
+// --------------------------------------------------------------------------
+// 3. UI and Component Logic (COMPLETE)
+// --------------------------------------------------------------------------
+export default function App(): JSX.Element {
+  const [mode, setMode] = useState<"idle" | "running">("idle");
+  const [logs, setLogs] = useState<LogItem[]>([]);
+  const managerRef = useRef<BleManager | null>(null);
+
+  // Initialize the BleManager (for foreground use/state management)
+  useEffect(() => {
+    managerRef.current = new BleManager();
+    return () => {
+      const m = managerRef.current;
+      if (m) m.destroy();
+    };
+  }, []);
+
+  const appendLog = (t: string) => {
+    const item = { id: `${Date.now()}-${logCounter++}`, text: t };
+    setLogs((p) => [item, ...p].slice(0, 200));
+    logNow(t);
+  };
+
+  // 🚨 ADDED: Permission Request Function 🚨
+  async function requestPermissionsOrFail(): Promise<boolean> {
+    if (Platform.OS !== "android") return true;
+
+    // NOTE: BLUETOOTH_ADVERTISE is necessary only if you were also advertising
+    const perms = [
+      PERMISSIONS.ANDROID.BLUETOOTH_SCAN,
+      PERMISSIONS.ANDROID.BLUETOOTH_CONNECT,
+      PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION, // Needed for older Android
+    ];
+    const results: { p: string; r: string }[] = [];
+
+    for (const p of perms) {
+      try {
+        // Use the request function from react-native-permissions
+        const r = await request(p as any);
+        results.push({ p, r });
+      } catch (e) {
+        results.push({ p, r: "error" });
+      }
+    }
+
+    const failed = results.filter((x) => x.r !== RESULTS.GRANTED);
+    if (failed.length) {
+      appendLog("Permissions missing: " + JSON.stringify(failed));
+      Alert.alert(
+        "Permissions Required",
+        "Bluetooth and Location permissions are necessary for background scanning."
+      );
+      return false;
+    }
+    appendLog("All required BLE permissions granted.");
+    return true;
+  }
+
+
+  async function toggleBackgroundService() {
+    if (await BackgroundService.isRunning()) {
+      await BackgroundService.stop();
+      setMode('idle');
+      appendLog('Background service stopped.');
+    } else {
+      // 🚨 CRITICAL: Check permissions before attempting to start the native service 🚨
+      const ok = await requestPermissionsOrFail();
+      if (!ok) return;
+
+      try {
+        await BackgroundService.start(bleScanTask, options);
+        setMode('running');
+        appendLog('Background service started for continuous scanning.');
+      } catch (e) {
+        appendLog(`Failed to start background service: ${e}`);
+      }
+    }
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, padding: 16 }}>
+      <Text style={{ fontSize: 20, fontWeight: "700", marginBottom: 12 }}>
+        BLE Mesh POC — Foreground Service (Android)
+      </Text>
+
+      <View style={{ flexDirection: "row", justifyContent: "space-around", marginBottom: 12 }}>
+        <TouchableOpacity
+          onPress={toggleBackgroundService}
+          style={{
+            backgroundColor: mode === "running" ? "#cc0000" : "#0044cc",
+            padding: 12,
+            borderRadius: 8,
+            flex: 1,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: "white", fontWeight: "700" }}>
+            {mode === "running" ? "Stop Background Scan" : "Start Continuous Scan"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={{ marginBottom: 8, fontWeight: "600" }}>Logs</Text>
+      <FlatList
+        style={{ flex: 1 }}
+        data={logs}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View
+            style={{
+              paddingVertical: 6,
+              borderBottomWidth: 1,
+              borderColor: "#eee",
+            }}
+          >
+            <Text style={{ fontSize: 13 }}>{item.text}</Text>
+          </View>
+        )}
+      />
+    </SafeAreaView>
+  );
+}

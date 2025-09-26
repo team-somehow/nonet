@@ -44,6 +44,7 @@ async function sendApiPost(message) {
 
 export default function App(): JSX.Element {
 
+
   const myHeadlessTask = async (taskId) => {
     const now = new Date(Date.now()).toISOString();
     console.log(`[BackgroundFetch] Task ID: ${taskId} starting BLE scan at: ${now}`);
@@ -222,7 +223,7 @@ export default function App(): JSX.Element {
     const ok = await requestPermissionsOrFail();
     if (!ok) return;
 
-    const payloadText = "HELLO";
+    const payloadText = "abadaba";
     appendLog("Advertising payload: " + payloadText);
 
     try {

@@ -102,28 +102,43 @@ export default function App(): JSX.Element {
 
       // Support multiple API names across versions
       const adv: any = BleAdvertiser;
-      if (adv && adv.broadcast) {
-        // Convert base64 string to byte array for the broadcast method
-        const byteArray = Array.from(payloadBytes);
-        adv.broadcast(
-          byteArray,
-          {
-            advertisedServiceUuid: null,
-            manufacturerId: 0xffff,
-            connectable: false,
-          },
-          0
-        );
-      } else if (adv && adv.startAdvertising) {
+
+      // Debug: Log available methods
+      appendLog(
+        "BleAdvertiser methods: " + Object.getOwnPropertyNames(adv).join(", ")
+      );
+
+      if (adv && adv.startAdvertising) {
+        // Use startAdvertising as it's more reliable
         adv.startAdvertising(b64, {
           manufacturerId: 0xffff,
           connectable: false,
         });
       } else if (adv && adv.start) {
         adv.start(b64);
+      } else if (adv && adv.broadcast) {
+        // Try broadcast with 3 required parameters (string, array, manufacturerId)
+        try {
+          adv.broadcast(
+            b64, // First argument: base64 string
+            [], // Second argument: array (not object!)
+            0xffff // Third argument: manufacturer ID
+          );
+        } catch (e) {
+          appendLog("Broadcast error: " + (e as any)?.message);
+        }
+      } else if (adv && adv.setCompanyId && adv.broadcastChunk) {
+        // Try alternative API for newer versions
+        try {
+          const byteArray = Array.from(payloadBytes);
+          adv.broadcastChunk(byteArray);
+        } catch (e) {
+          appendLog("BroadcastChunk error: " + (e as any)?.message);
+        }
       } else {
         appendLog(
-          "No known BleAdvertiser method found. Inspect library version."
+          "No known BleAdvertiser method found. Available methods: " +
+            Object.getOwnPropertyNames(adv).join(", ")
         );
         Alert.alert(
           "Advertiser missing",

@@ -4,6 +4,7 @@ import { Alert, Button, StyleSheet, Text, View } from 'react-native';
 import BackgroundFetch from 'react-native-background-fetch';
 
 const BACKGROUND_TASK_IDENTIFIER = 'com.yourcompany.BackgroundTask'; // Use a full package name
+const SCHEDULED_TASK_ID = 'com.yourcompany.short-task';
 
 // 2. Define the Headless JS Task (global scope)
 // This is the function that runs when the OS triggers the background event
@@ -11,14 +12,31 @@ const myHeadlessTask = async (taskId) => {
   const now = new Date(Date.now()).toISOString();
   console.log(`[BackgroundFetch] Task ID: ${taskId} received at: ${now}`);
 
-  // 🚨 IMPORTANT: Perform your actual work here (e.g., fetch data, etc.)
+  // ✅ Your Ngrok URL is correct for external/physical device testing
+  const SERVER_URL = 'https://ea2ea87b756d.ngrok-free.app/api/background-hit';
 
-  // Use a local notification library (e.g., react-native-notifications) to show a notification
-  // to confirm the task ran, as console.log won't be visible in the background.
+  try {
+    const response = await fetch(SERVER_URL, {
+      method: 'GET',
+    });
+    if (response.ok) {
+      const result = await response.json();
+      console.log('[BackgroundFetch] Server hit successful:', result);
 
-  // 🚨 IMPORTANT: You must call finish(taskId)
+      // 💡 Suggestion: Add a Local Notification here for clear user confirmation!
+      // PushNotification.localNotification({...}); 
+
+    } else {
+      throw new Error(`Server returned status: ${response.status}`);
+    }
+  } catch (error) {
+    console.log('[BackgroundFetch] Server hit failed:', error);
+  }
+
+  // ✅ CRITICAL: Signal task completion
   BackgroundFetch.finish(taskId);
 };
+
 
 // 3. Register the headless task
 BackgroundFetch.registerHeadlessTask(myHeadlessTask);
@@ -28,20 +46,30 @@ async function initBackgroundFetch() {
   try {
     const status = await BackgroundFetch.configure(
       {
-        minimumFetchInterval: 15, // <-- Minimum interval (in minutes) for iOS/Android
-        stopOnTerminate: false,    // <-- iOS: continue background fetch when app is terminated
-        startOnBoot: true,         // <-- Android: start background fetch at boot
-        requiredNetworkType: BackgroundFetch.NETWORK_TYPE_NONE, // Require network?
-        enableHeadless: true,      // <-- Android only: allow execution while app is closed
+        stopOnTerminate: false,
+        startOnBoot: true,
+        requiredNetworkType: BackgroundFetch.NETWORK_TYPE_CELLULAR,
+        enableHeadless: true,
       },
-      myHeadlessTask, // <-- Your task execution callback
+      myHeadlessTask,
       (error) => {
-        // <-- Failure callback
         console.error('[BackgroundFetch] Failed to configure:', error);
       },
     );
 
     console.log('[BackgroundFetch] Configuration Status:', status);
+
+    try {
+      await BackgroundFetch.scheduleTask({
+        taskId: SCHEDULED_TASK_ID,
+        delay: 60000,                          // 1 minute
+        periodic: true,                        // Repeat
+        forceAlarmManager: true,               // Force fast intervals (Android only)
+      });
+      console.log('[BackgroundFetch] Custom 1-minute task scheduled.');
+    } catch (e) {
+      console.warn('[BackgroundFetch] Custom task scheduling failed:', e);
+    }
 
     // If successfully configured, this returns the initial status
     return status;
@@ -51,20 +79,12 @@ async function initBackgroundFetch() {
   }
 }
 
-// 5. Check Registration (using getStatus as a proxy)
-async function getRegistrationStatusAsync() {
-  try {
-    const status = await BackgroundFetch.status;
-    // Status can be: available, denied, restricted
-    return status === BackgroundFetch.STATUS_AVAILABLE;
-  } catch (error) {
-    return false;
-  }
-}
+
 
 // 6. Stop the task (similar to unregisterBackgroundTaskAsync)
 async function unregisterBackgroundTaskAsync() {
-  await BackgroundFetch.stop(BACKGROUND_TASK_IDENTIFIER);
+  // Use the ID of the task that was ACTUALLY scheduled
+  await BackgroundFetch.stop(SCHEDULED_TASK_ID);
 }
 
 // Show help (mostly for iOS settings)

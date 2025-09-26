@@ -31,7 +31,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="backgroundService"
         options={{
           title: 'backgroundService',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="sterlingsign.square.fill" color={color} />,

@@ -1,374 +1,193 @@
-import React, { JSX, useEffect, useRef, useState } from "react";
+import React from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TouchableOpacity,
   FlatList,
-  Alert,
-  Platform,
-} from "react-native";
-import { BleManager, Device } from "react-native-ble-plx";
-import BleAdvertiser from "react-native-ble-advertiser";
-import { request, PERMISSIONS, RESULTS } from "react-native-permissions";
-import base64 from "react-native-base64";
+  StyleSheet,
+} from 'react-native';
+import { useBleManager } from '@/hooks/use-ble-manager';
+import { useBleAdvertiser } from '@/hooks/use-ble-advertiser';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-const logNow = (...args: any[]) => console.log("[BLEPOC]", ...args);
-
-type LogItem = { id: string; text: string };
-
-let logCounter = 0; // Add a counter to ensure unique keys
-
-export default function App(): JSX.Element {
-  const [mode, setMode] = useState<"idle" | "advertising" | "scanning">("idle");
-  const [logs, setLogs] = useState<LogItem[]>([]);
-  const managerRef = useRef<BleManager | null>(null);
-
-  useEffect(() => {
-    managerRef.current = new BleManager();
-    if (Platform.OS === "android") {
-      try {
-        if (BleAdvertiser && (BleAdvertiser as any).setCompanyId) {
-          (BleAdvertiser as any).setCompanyId(0xffff);
-        }
-      } catch (e) {
-        logNow("advertiser init error", e);
-      }
-    }
-
-    return () => {
-      stopScan();
-      stopAdvertise();
-      const m = managerRef.current;
-      if (m) m.destroy();
-    };
-  }, []);
-
-  const appendLog = (t: string) => {
-    const item = { id: `${Date.now()}-${logCounter++}`, text: t }; // Use timestamp + counter for unique keys
-    setLogs((p) => [item, ...p].slice(0, 200));
-    logNow(t);
-  };
-
-  async function requestPermissionsOrFail(): Promise<boolean> {
-    if (Platform.OS !== "android") return true;
-    const perms = [
-      PERMISSIONS.ANDROID.BLUETOOTH_SCAN,
-      PERMISSIONS.ANDROID.BLUETOOTH_CONNECT,
-      PERMISSIONS.ANDROID.BLUETOOTH_ADVERTISE,
-      PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-    ];
-    const results: Array<{ p: string; r: string }> = [];
-
-    for (const p of perms) {
-      try {
-        const r = await request(p as any);
-        results.push({ p, r });
-      } catch (e) {
-        results.push({ p, r: "error" });
-      }
-    }
-    const failed = results.filter((x) => x.r !== RESULTS.GRANTED);
-    if (failed.length) {
-      appendLog("Permissions missing: " + JSON.stringify(failed));
-      Alert.alert(
-        "Permissions required",
-        "Please grant BLE permissions in system settings for this app to work."
-      );
-      return false;
-    }
-    appendLog("All BLE permissions granted");
-    return true;
-  }
-
-  // Advertise helpers
-  async function startAdvertiseHello() {
-    const ok = await requestPermissionsOrFail();
-    if (!ok) return;
-
-    const payloadText = "HELLO";
-    appendLog("Advertising payload: " + payloadText);
-
-    try {
-      const adv: any = BleAdvertiser;
-      const payloadBytes = new TextEncoder().encode(payloadText); // Uint8Array
-      const byteArray = Array.from(payloadBytes); // [72,69,76,76,79]
-      const b64 = base64.encode(String.fromCharCode(...payloadBytes));
-
-      appendLog(
-        "BleAdvertiser methods: " + Object.getOwnPropertyNames(adv).join(", ")
-      );
-
-      // setCompanyId if available (some versions require this)
-      try {
-        if (adv && adv.setCompanyId) {
-          adv.setCompanyId(0xffff);
-          appendLog("setCompanyId(0xffff) called");
-        }
-      } catch (e: any) {
-        appendLog("setCompanyId error: " + (e?.message || e));
-      }
-
-      // Helper: try a call and return true on success
-      const tryCall = async (desc: string, fn: () => any) => {
-        appendLog(`Trying: ${desc}`);
-        try {
-          const res = fn();
-          // handle promise-returning native methods
-          if (res && typeof res.then === "function") await res;
-          appendLog(`Success: ${desc}`);
-          return true;
-        } catch (err: any) {
-          appendLog(`Failed: ${desc} -> ${err?.message ?? String(err)}`);
-          return false;
-        }
-      };
-
-      // 1) Preferred: startAdvertising(base64, options)
-      if (adv && adv.startAdvertising) {
-        const ok1 = await tryCall("startAdvertising(base64, options)", () =>
-          adv.startAdvertising(b64, {
-            manufacturerId: 0xffff,
-            connectable: false,
-          })
-        );
-        if (ok1) {
-          setMode("advertising");
-          return;
-        }
-      }
-
-      // Build a deterministic UUID-like string from payload bytes (safe fallback)
-      const hex = byteArray
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("")
-        .padEnd(32, "0")
-        .slice(0, 32);
-      const uuidLike = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(
-        12,
-        16
-      )}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-
-      // 2) Try broadcast with string UUID as first arg: broadcast(uuidString, [bytes], options)
-      if (adv && adv.broadcast) {
-        const ok2 = await tryCall(
-          "broadcast(uuidString, byteArray, options)",
-          () =>
-            adv.broadcast(uuidLike, byteArray, {
-              connectable: false,
-              includeDeviceName: false,
-            })
-        );
-        if (ok2) {
-          setMode("advertising");
-          return;
-        }
-
-        // 3) Try broadcast with array-first signature (README style): broadcast([uuid], [bytes], options)
-        const ok3 = await tryCall("broadcast([uuid], byteArray, options)", () =>
-          adv.broadcast([uuidLike], byteArray, {
-            connectable: false,
-            includeDeviceName: false,
-          })
-        );
-        if (ok3) {
-          setMode("advertising");
-          return;
-        }
-
-        // 4) Try broadcast with base64 single-arg (some versions accept base64 string)
-        const ok4 = await tryCall("broadcast(base64String)", () =>
-          adv.broadcast(b64)
-        );
-        if (ok4) {
-          setMode("advertising");
-          return;
-        }
-
-        // 5) Try broadcast([], byteArray, options) (some docs/examples)
-        const ok5 = await tryCall("broadcast([], byteArray, options)", () =>
-          adv.broadcast([], byteArray, { connectable: false })
-        );
-        if (ok5) {
-          setMode("advertising");
-          return;
-        }
-      }
-
-      // 6) Try broadcastChunk if available (raw bytes)
-      if (adv && adv.broadcastChunk) {
-        const ok6 = await tryCall("broadcastChunk(byteArray)", () =>
-          adv.broadcastChunk(byteArray)
-        );
-        if (ok6) {
-          setMode("advertising");
-          return;
-        }
-      }
-
-      // 7) Fallback: start(base64)
-      if (adv && adv.start) {
-        const ok7 = await tryCall("start(base64)", () => adv.start(b64));
-        if (ok7) {
-          setMode("advertising");
-          return;
-        }
-      }
-
-      // nothing succeeded
-      appendLog(
-        "All advertise attempts failed. See above logs for native errors."
-      );
-      Alert.alert(
-        "Advertise failed",
-        "All advertise attempts failed — check logs for details."
-      );
-    } catch (e: any) {
-      appendLog("Advertise error: " + (e?.message || e));
-      console.error(e);
-    }
-  }
-
-  function stopAdvertise() {
-    try {
-      const adv: any = BleAdvertiser;
-      if (adv.stopBroadcast) adv.stopBroadcast();
-      else if (adv.stopAdvertising) adv.stopAdvertising();
-      else if (adv.stop) adv.stop();
-    } catch (e) {
-      // ignore
-    }
-    appendLog("Stopped advertising");
-    setMode("idle");
-  }
-
-  // Scanning
-  function startScan() {
-    requestPermissionsOrFail().then((ok) => {
-      if (!ok) return;
-      appendLog("Start scanning...");
-      const manager = managerRef.current;
-      if (!manager) {
-        appendLog("Ble manager not initialized");
-        return;
-      }
-      stopScan();
-      manager.startDeviceScan(
-        null,
-        { allowDuplicates: true },
-        (error, device) => {
-          if (error) {
-            appendLog("Scan error: " + error.message);
-            return;
-          }
-          if (!device) return;
-
-          // manufacturerData is base64 string when present
-          const md = (device as Device & any).manufacturerData;
-          if (md) {
-            try {
-              const decoded = base64.decode(md);
-              appendLog(
-                `Received manuf adv from ${device.id}: "${decoded}" rssi=${device.rssi}`
-              );
-              if (decoded.includes("HELLO")) {
-                appendLog("HELLO received — stopping scan");
-                stopScan();
-              }
-            } catch (e) {
-              appendLog("Decode error: " + (e as any)?.message);
-            }
-          } else if (device.localName) {
-            appendLog(
-              `Found device localName=${device.localName} id=${device.id}`
-            );
-          } else {
-            appendLog(`Found device id=${device.id} rssi=${device.rssi}`);
-          }
-        }
-      );
-
-      setMode("scanning");
-    });
-  }
-
-  function stopScan() {
-    try {
-      const mgr = managerRef.current;
-      if (mgr) mgr.stopDeviceScan();
-    } catch {}
-    appendLog("Stopped scan");
-    setMode("idle");
-  }
+export default function SenderTab() {
+  const { logs, clearLogs } = useBleManager();
+  const { isAdvertising, startAdvertiseHello, stopAdvertise } =
+    useBleAdvertiser();
+  const colorScheme = useColorScheme();
 
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: "700", marginBottom: 12 }}>
-        BLE Mesh POC — Expo (Android) — HELLO
-      </Text>
+    <ThemedView style={styles.container}>
+      <ThemedView style={styles.header}>
+        <ThemedText type="title" style={styles.title}>
+          📡 Sender
+        </ThemedText>
+        <ThemedText style={styles.subtitle}>
+          Broadcast BLE messages to nearby devices
+        </ThemedText>
+      </ThemedView>
 
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
-      >
+      <ThemedView style={styles.controlSection}>
         <TouchableOpacity
           onPress={() => {
-            if (mode === "advertising") stopAdvertise();
+            if (isAdvertising) stopAdvertise();
             else startAdvertiseHello();
           }}
-          style={{
-            backgroundColor: mode === "advertising" ? "#cc0000" : "#00aa00",
-            padding: 12,
-            borderRadius: 8,
-            flex: 1,
-            marginRight: 8,
-            alignItems: "center",
-          }}
+          style={[
+            styles.primaryButton,
+            {
+              backgroundColor: isAdvertising
+                ? Colors[colorScheme ?? 'light'].destructive
+                : Colors[colorScheme ?? 'light'].tint,
+            },
+          ]}
         >
-          <Text style={{ color: "white", fontWeight: "700" }}>
-            {mode === "advertising" ? "Stop Advertising" : "Advertise HELLO"}
+          <Text style={styles.buttonText}>
+            {isAdvertising ? '🛑 Stop Broadcasting' : '📡 Start Broadcasting'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => {
-            if (mode === "scanning") stopScan();
-            else startScan();
-          }}
-          style={{
-            backgroundColor: mode === "scanning" ? "#cc0000" : "#0044cc",
-            padding: 12,
-            borderRadius: 8,
-            flex: 1,
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: "white", fontWeight: "700" }}>
-            {mode === "scanning" ? "Stop Scanning" : "Scan"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={{ marginBottom: 8, fontWeight: "600" }}>Logs</Text>
-      <FlatList
-        style={{ flex: 1 }}
-        data={logs}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View
-            style={{
-              paddingVertical: 6,
-              borderBottomWidth: 1,
-              borderColor: "#eee",
-            }}
+        <ThemedView style={styles.statusContainer}>
+          <ThemedText style={styles.statusLabel}>Status:</ThemedText>
+          <ThemedText
+            style={[
+              styles.statusText,
+              {
+                color: isAdvertising
+                  ? Colors[colorScheme ?? 'light'].tint
+                  : Colors[colorScheme ?? 'light'].text,
+              },
+            ]}
           >
-            <Text style={{ fontSize: 13 }}>{item.text}</Text>
-          </View>
-        )}
-      />
-    </SafeAreaView>
+            {isAdvertising ? '🟢 Broadcasting HELLO message' : '⚫ Idle'}
+          </ThemedText>
+        </ThemedView>
+      </ThemedView>
+
+      <ThemedView style={styles.logsSection}>
+        <View style={styles.logsHeader}>
+          <ThemedText type="defaultSemiBold" style={styles.logsTitle}>
+            Activity Logs
+          </ThemedText>
+          <TouchableOpacity onPress={clearLogs} style={styles.clearButton}>
+            <Text style={styles.clearButtonText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          style={styles.logsList}
+          data={logs}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ThemedView style={styles.logItem}>
+              <ThemedText style={styles.logText}>{item.text}</ThemedText>
+            </ThemedView>
+          )}
+          showsVerticalScrollIndicator={false}
+        />
+      </ThemedView>
+    </ThemedView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  header: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    opacity: 0.7,
+    textAlign: 'center',
+  },
+  controlSection: {
+    marginBottom: 24,
+  },
+  primaryButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  statusLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  logsSection: {
+    flex: 1,
+  },
+  logsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  logsTitle: {
+    fontSize: 18,
+  },
+  clearButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,0,0,0.1)',
+  },
+  clearButtonText: {
+    color: '#cc0000',
+    fontWeight: '600',
+  },
+  logsList: {
+    flex: 1,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    paddingHorizontal: 8,
+  },
+  logItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  logText: {
+    fontSize: 13,
+    fontFamily: 'monospace',
+    lineHeight: 18,
+  },
+});

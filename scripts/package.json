@@ -9,6 +9,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "crypto-js": "^4.2.0",
+    "elliptic": "^6.6.1",
     "ethers": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
+    "@types/elliptic": "^6.4.18"
   }
 }

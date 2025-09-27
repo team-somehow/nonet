@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, useRef } from "react";
 import {
   Alert,
   Text,
@@ -7,13 +7,14 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-} from 'react-native';
-import base64 from 'react-native-base64';
-import BleAdvertiser from 'react-native-ble-advertiser';
-import { BleManager } from 'react-native-ble-plx';
+  Platform,
+} from "react-native";
+import base64 from "react-native-base64";
+import BleAdvertiser from "react-native-ble-advertiser";
+import { BleManager } from "react-native-ble-plx";
 
 // Define a consistent UUID for your service. Both broadcaster and listener must use this.
-const MESH_SERVICE_UUID = '12345678-1234-5678-9abc-dedede880880';
+const MESH_SERVICE_UUID = "12345678-1234-5678-9abc-dedede880880";
 
 /**
  * Broadcasts a single data chunk over BLE advertisement (GAP).
@@ -40,11 +41,11 @@ export const broadcastOverBle = async (chunk: Uint8Array): Promise<void> => {
       includeTxPowerLevel: false,
     });
 
-    console.log('Broadcast started successfully.');
+    console.log("Broadcast started successfully.");
   } catch (error: any) {
-    console.error('BLE Broadcast Error:', error.message);
+    console.error("BLE Broadcast Error:", error.message);
     Alert.alert(
-      'Broadcast Error',
+      "Broadcast Error",
       `Failed to start BLE broadcast: ${error.message}`
     );
     // You might want to stop broadcasting entirely if one chunk fails
@@ -58,9 +59,9 @@ export const broadcastOverBle = async (chunk: Uint8Array): Promise<void> => {
 export const stopBleBroadcast = async (): Promise<void> => {
   try {
     await (BleAdvertiser as any).stopBroadcast();
-    console.log('BLE Broadcast stopped.');
+    console.log("BLE Broadcast stopped.");
   } catch (error: any) {
-    console.error('BLE Stop Broadcast Error:', error.message);
+    console.error("BLE Stop Broadcast Error:", error.message);
   }
 };
 
@@ -72,9 +73,14 @@ export const stopBleBroadcast = async (): Promise<void> => {
  * @returns A function that can be called to stop the listener.
  */
 export const listenOverBle = (
-  bleManager: BleManager,
+  bleManager: BleManager | null,
   onChunkReceived: (chunk: Uint8Array) => void
 ): (() => void) => {
+  if (!bleManager) {
+    console.error("BLE Manager not initialized");
+    return () => {}; // Return empty cleanup function
+  }
+
   console.log(`Starting BLE scan for service: ${MESH_SERVICE_UUID}`);
 
   // Start scanning for devices that are advertising our specific service UUID.
@@ -83,7 +89,7 @@ export const listenOverBle = (
     { allowDuplicates: true }, // Allow duplicates to get continuous updates
     (error, device) => {
       if (error) {
-        console.error('BLE Scan Error:', error.message);
+        console.error("BLE Scan Error:", error.message);
         // Consider adding more robust error handling, e.g., stopping the scan.
         return;
       }
@@ -111,7 +117,7 @@ export const listenOverBle = (
           // 3. Pass the reconstructed chunk to the callback function.
           onChunkReceived(chunk);
         } catch (decodeError) {
-          console.error('Error decoding service data:', decodeError);
+          console.error("Error decoding service data:", decodeError);
         }
       }
     }
@@ -119,8 +125,10 @@ export const listenOverBle = (
 
   // Return a function that the caller can use to stop the scan.
   const stopListener = () => {
-    bleManager.stopDeviceScan();
-    console.log('BLE Scan stopped.');
+    if (bleManager) {
+      bleManager.stopDeviceScan();
+      console.log("BLE Scan stopped.");
+    }
   };
 
   return stopListener;
@@ -129,8 +137,8 @@ export const listenOverBle = (
 export const encodeMessageToChunks = (message: string): Uint8Array[] => {
   // --- 1. Define Constants based on our protocol ---
   const HEADER_SIZE = 13;
-  const DATA_PER_CHUNK = 18;
-  const MAX_PAYLOAD_SIZE = 31;
+  const DATA_PER_CHUNK = 10;
+  const MAX_PAYLOAD_SIZE = 23;
 
   // --- 2. Encode the string message to a binary array ---
   const encoder = new TextEncoder();
@@ -141,7 +149,7 @@ export const encodeMessageToChunks = (message: string): Uint8Array[] => {
   const idArray = new Uint32Array(1);
   crypto.getRandomValues(idArray);
   const uniqueId = idArray[0];
-  console.log('Unique ID:', uniqueId);
+  console.log("Unique ID:", uniqueId);
 
   // --- 4. Create each chunk ---
   const createdChunks: Uint8Array[] = [];
@@ -178,8 +186,8 @@ export interface DataPayload {
 }
 
 export const decodeSingleChunk = (chunk: Uint8Array): DataPayload | null => {
-  if (chunk.length !== 31) {
-    console.error('Invalid chunk length. Expected 31 bytes.');
+  if (chunk.length !== 23) {
+    console.error("Invalid chunk length. Expected 23 bytes.");
     return null;
   }
 
@@ -215,18 +223,50 @@ export const decodeSingleChunk = (chunk: Uint8Array): DataPayload | null => {
 };
 
 const App = () => {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [receivedMessages, setReceivedMessages] = useState([
-    'Listening for messages...',
+    "Listening for messages...",
     'Signal detected: "Hello from nearby device"',
     'Signal detected: "Testing broadcast"',
   ]);
   const [chunks, setChunks] = useState<Uint8Array[]>([]);
 
+  const managerRef = useRef<BleManager | null>(null);
+
+  useEffect(() => {
+    // Initialize BLE manager
+    managerRef.current = new BleManager();
+
+    // Initialize BLE advertiser for Android
+    if (Platform.OS === "android") {
+      try {
+        if (BleAdvertiser && (BleAdvertiser as any).setCompanyId) {
+          (BleAdvertiser as any).setCompanyId(0xffff);
+        }
+      } catch (e) {
+        console.log("advertiser init error", e);
+      }
+    }
+
+    // Start listening
+    const stopListener = listenOverBle(managerRef.current, (chunk) => {
+      const decodedChunk = decodeSingleChunk(chunk);
+      console.log("Decoded Chunk:", decodedChunk);
+    });
+
+    return () => {
+      stopListener();
+      const manager = managerRef.current;
+      if (manager) {
+        manager.destroy();
+      }
+    };
+  }, []);
+
   const handleStartBroadcasting = () => {
     if (!message) {
-      alert('Please enter a message to broadcast.');
+      alert("Please enter a message to broadcast.");
       return;
     }
 
@@ -236,12 +276,15 @@ const App = () => {
     // Update state and log the results
     setChunks(createdChunks);
     setIsBroadcasting(true);
-    console.log('Original Message:', message);
-    console.log('Generated Chunks:', createdChunks);
+    console.log("Original Message:", message);
+    console.log("Generated Chunks:", createdChunks);
+
+    // send chunks via ble
+    broadcastOverBle(createdChunks[0]);
 
     for (const chunk of createdChunks) {
       const decodedChunk = decodeSingleChunk(chunk);
-      console.log('Decoded Chunk:', decodedChunk);
+      console.log("Decoded Chunk:", decodedChunk);
     }
   };
 
@@ -325,41 +368,41 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   broadcasterSection: {
     flex: 1,
-    backgroundColor: '#e3f2fd',
+    backgroundColor: "#e3f2fd",
     padding: 20,
     borderBottomWidth: 2,
-    borderBottomColor: '#ddd',
+    borderBottomColor: "#ddd",
   },
   receiverSection: {
     flex: 1,
-    backgroundColor: '#f3e5f5',
+    backgroundColor: "#f3e5f5",
     padding: 20,
   },
   sectionTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 20,
-    color: '#333',
+    color: "#333",
   },
   textInput: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 10,
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     minHeight: 80,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
     marginBottom: 20,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 15,
   },
   button: {
@@ -367,37 +410,37 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     marginHorizontal: 5,
-    alignItems: 'center',
+    alignItems: "center",
   },
   startButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
   },
   stopButton: {
-    backgroundColor: '#f44336',
+    backgroundColor: "#f44336",
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: "#ccc",
   },
   buttonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   statusContainer: {
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    backgroundColor: "rgba(244, 67, 54, 0.1)",
     padding: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#f44336',
+    borderColor: "#f44336",
   },
   statusText: {
-    color: '#f44336',
+    color: "#f44336",
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
   messagesList: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
@@ -405,29 +448,29 @@ const styles = StyleSheet.create({
   messageItem: {
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
   },
   messageText: {
     fontSize: 14,
-    color: '#333',
+    color: "#333",
     marginBottom: 4,
   },
   timestamp: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   listeningIndicator: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
     padding: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#4CAF50',
-    alignItems: 'center',
+    borderColor: "#4CAF50",
+    alignItems: "center",
   },
   listeningText: {
-    color: '#4CAF50',
+    color: "#4CAF50",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });
 

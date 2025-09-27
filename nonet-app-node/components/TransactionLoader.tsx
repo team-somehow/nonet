@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Colors } from '@/constants/theme';
+import { useWallet, TransactionData } from '@/contexts/WalletContext';
 
 // Transaction Flow Steps - Easily editable constants
 const TRANSACTION_STEPS = [
@@ -81,6 +82,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
   onCancel,
   transactionData,
 }) => {
+  const { signTransaction } = useWallet();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
@@ -114,17 +116,59 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
     }).start();
   };
 
-  const startTransactionFlow = () => {
+  // Function to sign the transaction
+  const handleTransactionSigning = async () => {
+    try {
+      if (!transactionData) {
+        console.log('❌ No transaction data provided');
+        return;
+      }
+
+      // Create transaction data for signing
+      const txData: TransactionData = {
+        to: transactionData.toAddress,
+        value: transactionData.amount,
+        gasLimit: '21000',
+        gasPrice: '20000000000', // 20 Gwei
+        nonce: '0',
+        chainId: 1, // Ethereum mainnet (can be made dynamic)
+      };
+
+      console.log('🔐 Signing transaction in TransactionLoader...');
+      console.log('📝 Transaction data:', txData);
+
+      // Sign the transaction using the wallet context
+      const signedTransaction = await signTransaction(txData);
+
+      console.log('✅ SIGNED TRANSACTION RESULT:');
+      console.log('==================================');
+      console.log('Transaction Hash:', signedTransaction.transactionHash);
+      console.log('Raw Transaction:', signedTransaction.rawTransaction);
+      console.log('Signature R:', signedTransaction.r);
+      console.log('Signature S:', signedTransaction.s);
+      console.log('Signature V:', signedTransaction.v);
+      console.log('==================================');
+
+    } catch (error) {
+      console.error('❌ Error signing transaction:', error);
+    }
+  };
+
+  const startTransactionFlow = async () => {
     let totalDuration = 0;
 
     TRANSACTION_STEPS.forEach((step, index) => {
-      setTimeout(() => {
+      setTimeout(async () => {
         setCurrentStep(index);
         animateStep(index);
         
-        // Update loading message periodically
         if (index < LOADING_MESSAGES.length) {
           setLoadingMessageIndex(index);
+        }
+
+        // Sign the transaction during the "Preparing Transaction" step (step 0)
+        if (index === 0) {
+          await handleTransactionSigning();
         }
       }, totalDuration);
 

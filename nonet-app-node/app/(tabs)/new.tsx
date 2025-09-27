@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   Text,
   View,
   StyleSheet,
@@ -7,6 +8,123 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import base64 from 'react-native-base64';
+import BleAdvertiser from 'react-native-ble-advertiser';
+import { BleManager } from 'react-native-ble-plx';
+
+// Define a consistent UUID for your service. Both broadcaster and listener must use this.
+const MESH_SERVICE_UUID = '12345678-1234-5678-9abc-dedede880880';
+
+/**
+ * Broadcasts a single data chunk over BLE advertisement (GAP).
+ * @param chunk The data payload to broadcast (max ~20-30 bytes, depends on device).
+ */
+export const broadcastOverBle = async (chunk: Uint8Array): Promise<void> => {
+  // The react-native-ble-advertiser library expects a plain array of numbers (bytes).
+  const payloadAsArray = Array.from(chunk);
+
+  try {
+    // Stop any previous broadcast to send a new one.
+    // This is important for sending a sequence of different chunks.
+    await (BleAdvertiser as any).stopBroadcast();
+
+    console.log(`Broadcasting chunk with ${payloadAsArray.length} bytes.`);
+
+    // Start a new broadcast.
+    // The chunk data is embedded in the 'serviceData' field of the advertisement.
+    await (BleAdvertiser as any).broadcast(MESH_SERVICE_UUID, payloadAsArray, {
+      // We are only sending data, so the device is not connectable.
+      connectable: false,
+      // Advertising options
+      includeDeviceName: false,
+      includeTxPowerLevel: false,
+    });
+
+    console.log('Broadcast started successfully.');
+  } catch (error: any) {
+    console.error('BLE Broadcast Error:', error.message);
+    Alert.alert(
+      'Broadcast Error',
+      `Failed to start BLE broadcast: ${error.message}`
+    );
+    // You might want to stop broadcasting entirely if one chunk fails
+    await stopBleBroadcast();
+  }
+};
+
+/**
+ * Stops the BLE broadcast.
+ */
+export const stopBleBroadcast = async (): Promise<void> => {
+  try {
+    await (BleAdvertiser as any).stopBroadcast();
+    console.log('BLE Broadcast stopped.');
+  } catch (error: any) {
+    console.error('BLE Stop Broadcast Error:', error.message);
+  }
+};
+
+/**
+ * Listens for BLE advertisement packets containing our specific service UUID.
+ *
+ * @param bleManager An instance of BleManager.
+ * @param onChunkReceived A callback function that will be invoked with the received data chunk.
+ * @returns A function that can be called to stop the listener.
+ */
+export const listenOverBle = (
+  bleManager: BleManager,
+  onChunkReceived: (chunk: Uint8Array) => void
+): (() => void) => {
+  console.log(`Starting BLE scan for service: ${MESH_SERVICE_UUID}`);
+
+  // Start scanning for devices that are advertising our specific service UUID.
+  bleManager.startDeviceScan(
+    [MESH_SERVICE_UUID],
+    { allowDuplicates: true }, // Allow duplicates to get continuous updates
+    (error, device) => {
+      if (error) {
+        console.error('BLE Scan Error:', error.message);
+        // Consider adding more robust error handling, e.g., stopping the scan.
+        return;
+      }
+
+      if (!device || !(device as any).serviceData) {
+        return; // Ignore devices without service data.
+      }
+
+      // The service data is often encoded in base64 by the ble-plx library.
+      const serviceDataB64 = (device as any).serviceData[MESH_SERVICE_UUID];
+
+      if (serviceDataB64) {
+        try {
+          // 1. Decode the base64 string to a raw byte string.
+          const byteString = base64.decode(serviceDataB64);
+
+          // 2. Convert the raw byte string into a Uint8Array.
+          const chunk = new Uint8Array(byteString.length);
+          for (let i = 0; i < byteString.length; i++) {
+            chunk[i] = byteString.charCodeAt(i);
+          }
+
+          console.log(`Received chunk with ${chunk.length} bytes.`);
+
+          // 3. Pass the reconstructed chunk to the callback function.
+          onChunkReceived(chunk);
+        } catch (decodeError) {
+          console.error('Error decoding service data:', decodeError);
+        }
+      }
+    }
+  );
+
+  // Return a function that the caller can use to stop the scan.
+  const stopListener = () => {
+    bleManager.stopDeviceScan();
+    console.log('BLE Scan stopped.');
+  };
+
+  return stopListener;
+};
 
 export const encodeMessageToChunks = (message: string): Uint8Array[] => {
   // --- 1. Define Constants based on our protocol ---

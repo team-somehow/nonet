@@ -1,19 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { router } from 'expo-router';
 import { Colors } from '@/constants/theme';
-
-interface ScannedAddress {
-  id: string;
-  address: string;
-  timestamp: Date;
-}
+import { useWallet, ScannedAddress } from '@/contexts/WalletContext';
 
 export default function Scan(): React.JSX.Element {
   const [permission, requestPermission] = useCameraPermissions();
-  const [scannedAddresses, setScannedAddresses] = useState<ScannedAddress[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
+  
+  // Use wallet context
+  const { scannedAddresses, addScannedAddress, clearScannedAddresses, removeScannedAddress } = useWallet();
 
   const isValidWalletAddress = (address: string): boolean => {
     // Basic validation for Ethereum-style addresses
@@ -27,22 +25,46 @@ export default function Scan(): React.JSX.Element {
       return;
     }
 
-    // Check if address already exists
-    const addressExists = scannedAddresses.some(item => item.address === data);
-    if (addressExists) {
-      Alert.alert("Duplicate Address", "This wallet address has already been scanned.");
-      return;
-    }
-
-    const newAddress: ScannedAddress = {
-      id: Date.now().toString(),
-      address: data,
-      timestamp: new Date(),
-    };
-
-    setScannedAddresses(prev => [newAddress, ...prev]);
     setIsScanning(false);
-    Alert.alert("Success", `Wallet address scanned successfully!\n\n${data}`);
+
+    // Show options for what to do with the scanned address
+    Alert.alert(
+      "Address Scanned Successfully",
+      `${data.slice(0, 6)}...${data.slice(-4)}`,
+      [
+        {
+          text: "Send Transaction",
+          onPress: () => {
+            // Add to scanned addresses and navigate to transaction page
+            try {
+              addScannedAddress(data);
+            } catch (error) {
+              // Address already exists, that's fine
+            }
+            router.push({
+              pathname: '/transaction',
+              params: { toAddress: data },
+            });
+          },
+          style: "default",
+        },
+        {
+          text: "Save Only",
+          onPress: () => {
+            try {
+              addScannedAddress(data);
+              Alert.alert("Success", "Address saved to your scanned addresses list.");
+            } catch (error) {
+              Alert.alert("Duplicate Address", "This wallet address has already been scanned.");
+            }
+          },
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]
+    );
   };
 
   const clearAddresses = () => {
@@ -51,19 +73,32 @@ export default function Scan(): React.JSX.Element {
       "Are you sure you want to clear all scanned addresses?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Clear", style: "destructive", onPress: () => setScannedAddresses([]) }
+        { text: "Clear", style: "destructive", onPress: () => clearScannedAddresses() }
       ]
     );
   };
 
   const renderAddressItem = ({ item }: { item: ScannedAddress }) => (
     <View style={styles.addressItem}>
-      <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
-        {item.address}
-      </Text>
-      <Text style={styles.timestampText}>
-        {item.timestamp.toLocaleString()}
-      </Text>
+      <View style={styles.addressInfo}>
+        <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
+          {item.address}
+        </Text>
+        <Text style={styles.timestampText}>
+          {item.timestamp.toLocaleString()}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={styles.sendButton}
+        onPress={() => {
+          router.push({
+            pathname: '/transaction',
+            params: { toAddress: item.address },
+          });
+        }}
+      >
+        <Text style={styles.sendButtonText}>Send</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -271,12 +306,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  addressInfo: {
+    flex: 1,
+    marginRight: 10,
   },
   addressText: {
     fontSize: 14,
     fontFamily: 'monospace',
     color: Colors.light.text,
     marginBottom: 5,
+  },
+  sendButton: {
+    backgroundColor: Colors.light.tint,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  sendButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
   },
   timestampText: {
     fontSize: 12,

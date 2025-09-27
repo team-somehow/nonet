@@ -3,6 +3,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { WalletProvider } from '@/contexts/WalletContext';
+import { Colors } from '@/constants/theme';
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -23,12 +26,24 @@ const CustomLightTheme = {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider value={CustomLightTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="dark" />
-    </ThemeProvider>
+    <WalletProvider>
+      <ThemeProvider value={CustomLightTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen 
+            name="transaction" 
+            options={{ 
+              title: 'Send Transaction',
+              presentation: 'modal',
+              headerShown: true,
+              headerStyle: { backgroundColor: Colors.light.background },
+              headerTintColor: Colors.light.text,
+            }} 
+          />
+        </Stack>
+        <StatusBar style="dark" />
+      </ThemeProvider>
+    </WalletProvider>
   );
 }

@@ -30,6 +30,7 @@ export const broadcastOverBle = async (chunk: Uint8Array): Promise<void> => {
     await (BleAdvertiser as any).stopBroadcast();
 
     console.log(`Broadcasting chunk with ${payloadAsArray.length} bytes.`);
+    console.log(`Payload data:`, payloadAsArray);
 
     // Start a new broadcast.
     // The chunk data is embedded in the 'serviceData' field of the advertisement.
@@ -136,9 +137,18 @@ export const listenOverBle = (
 
 export const encodeMessageToChunks = (message: string): Uint8Array[] => {
   // --- 1. Define Constants based on our protocol ---
-  const HEADER_SIZE = 13;
-  const DATA_PER_CHUNK = 10;
-  const MAX_PAYLOAD_SIZE = 23;
+  // Ultra-compact for BLE advertising 31-byte limit:
+  // - Service UUID takes ~16 bytes
+  // - BLE protocol overhead appears to be ~8-12 bytes
+  // - Safe payload size: 6 bytes total
+  //
+  // LIMITATIONS with this ultra-compact format:
+  // - Max 255 chunks per message (vs 65535 before)
+  // - Only 16-bit unique IDs (65536 possibilities vs 4 billion)
+  // - Only 1 byte of data per chunk (vs 2-3 before)
+  const HEADER_SIZE = 5; // 2 bytes ID + 1 byte total + 1 byte current + 1 byte flags
+  const DATA_PER_CHUNK = 1; // Only 1 byte of data per chunk
+  const MAX_PAYLOAD_SIZE = 6; // Total payload size (5 + 1)
 
   // --- 2. Encode the string message to a binary array ---
   const encoder = new TextEncoder();
@@ -159,10 +169,10 @@ export const encodeMessageToChunks = (message: string): Uint8Array[] => {
     const view = new DataView(chunkPayload.buffer);
 
     // -- Fill the header --
-    view.setUint32(0, uniqueId, true); // Unique ID
-    view.setUint32(4, totalChunks, true); // Total Chunks
-    view.setUint32(8, chunkNumber, true); // Chunk Number
-    view.setUint8(12, 0); // Flags (is_ack = 0)
+    view.setUint16(0, uniqueId & 0xffff, true); // Unique ID (2 bytes, truncated)
+    view.setUint8(2, Math.min(totalChunks, 255)); // Total Chunks (1 byte, max 255)
+    view.setUint8(3, Math.min(chunkNumber, 255)); // Chunk Number (1 byte, max 255)
+    view.setUint8(4, 0); // Flags (is_ack = 0) (1 byte)
 
     // -- Fill the data part --
     const dataStartIndex = i * DATA_PER_CHUNK;
@@ -186,19 +196,19 @@ export interface DataPayload {
 }
 
 export const decodeSingleChunk = (chunk: Uint8Array): DataPayload | null => {
-  if (chunk.length !== 23) {
-    console.error("Invalid chunk length. Expected 23 bytes.");
+  if (chunk.length !== 6) {
+    console.error("Invalid chunk length. Expected 6 bytes.");
     return null;
   }
 
-  const HEADER_SIZE = 13;
+  const HEADER_SIZE = 5;
   const view = new DataView(chunk.buffer);
 
   // --- 1. Parse the header ---
-  const id = view.getUint32(0, true);
-  const totalChunks = view.getUint32(4, true);
-  const chunkNumber = view.getUint32(8, true);
-  const flags = view.getUint8(12);
+  const id = view.getUint16(0, true);
+  const totalChunks = view.getUint8(2);
+  const chunkNumber = view.getUint8(3);
+  const flags = view.getUint8(4);
   const isAck = (flags & 1) === 1;
 
   // --- 2. Extract the raw data payload ---
@@ -252,7 +262,7 @@ const App = () => {
     // Start listening
     const stopListener = listenOverBle(managerRef.current, (chunk) => {
       const decodedChunk = decodeSingleChunk(chunk);
-      console.log("Decoded Chunk:", decodedChunk);
+      console.log("abba daaba Decoded Chunk:", decodedChunk);
     });
 
     return () => {

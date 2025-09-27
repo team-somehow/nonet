@@ -377,6 +377,22 @@ export default function Test(): JSX.Element {
         </TouchableOpacity>
       </View>
 
+      {/* Crypto Wallet Demo Button */}
+      <TouchableOpacity
+        onPress={() => router.push('/wallet-demo')}
+        style={{
+          backgroundColor: '#4CAF50',
+          padding: 12,
+          borderRadius: 8,
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: 'white', fontWeight: '700' }}>
+          🔐 Real Crypto Wallet Demo
+        </Text>
+      </TouchableOpacity>
+
       {/* Logout Button */}
       <TouchableOpacity
         onPress={handleLogout}

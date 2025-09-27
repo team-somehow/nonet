@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import 'react-native-get-random-values';
+import CryptoJS from 'crypto-js';
+import { ec as EC } from 'elliptic';
 
 export interface ScannedAddress {
   id: string;
@@ -10,6 +13,7 @@ export interface ScannedAddress {
 export interface WalletData {
   address: string;
   privateKey: string;
+  publicKey: string;
   createdAt: Date;
 }
 
@@ -28,6 +32,11 @@ interface WalletContextType {
   clearWallet: () => Promise<void>;
   logout: () => Promise<void>;
   
+  // Crypto utility functions
+  validatePrivateKey: (privateKey: string) => boolean;
+  deriveAddressFromPrivateKey: (privateKey: string) => string;
+  signMessage: (message: string, privateKey: string) => string;
+  
   // Scanned addresses functions
   addScannedAddress: (address: string) => void;
   clearScannedAddresses: () => void;
@@ -42,21 +51,147 @@ const STORAGE_KEYS = {
   SCANNED_ADDRESSES: '@scanned_addresses',
 };
 
-// Generate a mock wallet address and private key
-const generateMockWallet = (): { address: string; privateKey: string } => {
-  const randomHex = (length: number) => {
-    const chars = '0123456789abcdef';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return result;
-  };
+// Initialize elliptic curve (secp256k1 - same as Bitcoin/Ethereum)
+const ec = new EC('secp256k1');
 
-  return {
-    address: `0x${randomHex(40)}`,
-    privateKey: `0x${randomHex(64)}`,
-  };
+// Generate a real ECDSA wallet with proper key pair and address derivation
+const generateRealWallet = (): { address: string; privateKey: string; publicKey: string } => {
+  try {
+    console.log('🔐 Starting ECDSA wallet generation...');
+    
+    // Generate a random private key (32 bytes)
+    const keyPair = ec.genKeyPair();
+    
+    // Get private key as hex string
+    const privateKeyHex = keyPair.getPrivate('hex').padStart(64, '0');
+    const privateKey = `0x${privateKeyHex}`;
+    
+    // Get public key (uncompressed format: 04 + x + y coordinates)
+    const publicKeyHex = keyPair.getPublic('hex');
+    const publicKey = `0x${publicKeyHex}`;
+    
+    // Generate Ethereum address from public key
+    const address = generateEthereumAddress(publicKeyHex);
+    
+    console.log('✅ Wallet generated successfully');
+    console.log('Private key length:', privateKey.length);
+    console.log('Public key length:', publicKey.length);
+    console.log('Address:', address);
+    
+    return {
+      address,
+      privateKey,
+      publicKey,
+    };
+  } catch (error) {
+    console.error('❌ Error generating wallet:', error);
+    throw new Error('Failed to generate cryptographic wallet');
+  }
+};
+
+// Generate Ethereum address from public key
+const generateEthereumAddress = (publicKeyHex: string): string => {
+  try {
+    // Remove '04' prefix if present (uncompressed public key indicator)
+    const cleanPublicKey = publicKeyHex.startsWith('04') ? publicKeyHex.slice(2) : publicKeyHex;
+    
+    // Convert hex to word array for crypto-js
+    const publicKeyWords = CryptoJS.enc.Hex.parse(cleanPublicKey);
+    
+    // Calculate Keccak-256 hash
+    const hash = CryptoJS.SHA3(publicKeyWords, { outputLength: 256 });
+    
+    // Take last 20 bytes (40 hex characters) as address
+    const addressHex = hash.toString(CryptoJS.enc.Hex).slice(-40);
+    
+    // Add '0x' prefix and apply checksum
+    return applyEthereumChecksum(`0x${addressHex}`);
+  } catch (error) {
+    console.error('Error generating Ethereum address:', error);
+    throw new Error('Failed to generate Ethereum address');
+  }
+};
+
+// Apply EIP-55 checksum to Ethereum address
+const applyEthereumChecksum = (address: string): string => {
+  try {
+    const addressLower = address.toLowerCase().replace('0x', '');
+    const hash = CryptoJS.SHA3(addressLower, { outputLength: 256 }).toString(CryptoJS.enc.Hex);
+    
+    let checksumAddress = '0x';
+    for (let i = 0; i < addressLower.length; i++) {
+      if (parseInt(hash[i], 16) >= 8) {
+        checksumAddress += addressLower[i].toUpperCase();
+      } else {
+        checksumAddress += addressLower[i];
+      }
+    }
+    
+    return checksumAddress;
+  } catch (error) {
+    console.error('Error applying checksum:', error);
+    return address; // Return original if checksum fails
+  }
+};
+
+// Utility functions for wallet operations
+const validatePrivateKey = (privateKey: string): boolean => {
+  try {
+    // Remove 0x prefix if present
+    const cleanKey = privateKey.replace('0x', '');
+    
+    // Check if it's a valid hex string of 64 characters (32 bytes)
+    if (cleanKey.length !== 64) return false;
+    if (!/^[0-9a-fA-F]+$/.test(cleanKey)) return false;
+    
+    // Try to create a key pair from it
+    const keyPair = ec.keyFromPrivate(cleanKey, 'hex');
+    return keyPair.validate().result;
+  } catch {
+    return false;
+  }
+};
+
+const deriveAddressFromPrivateKey = (privateKey: string): string => {
+  try {
+    // Remove 0x prefix if present
+    const cleanKey = privateKey.replace('0x', '');
+    
+    // Create key pair from private key
+    const keyPair = ec.keyFromPrivate(cleanKey, 'hex');
+    
+    // Get public key
+    const publicKeyHex = keyPair.getPublic('hex');
+    
+    // Generate address from public key
+    return generateEthereumAddress(publicKeyHex);
+  } catch (error) {
+    console.error('Error deriving address:', error);
+    throw new Error('Invalid private key');
+  }
+};
+
+const signMessage = (message: string, privateKey: string): string => {
+  try {
+    // Remove 0x prefix if present
+    const cleanKey = privateKey.replace('0x', '');
+    
+    // Create key pair from private key
+    const keyPair = ec.keyFromPrivate(cleanKey, 'hex');
+    
+    // Hash the message
+    const messageHash = CryptoJS.SHA3(message, { outputLength: 256 });
+    const messageHashHex = messageHash.toString(CryptoJS.enc.Hex);
+    
+    // Sign the hash
+    const signature = keyPair.sign(messageHashHex, 'hex');
+    
+    // Return signature in hex format
+    return `0x${signature.r.toString('hex').padStart(64, '0')}${signature.s.toString('hex').padStart(64, '0')}${signature.recoveryParam?.toString(16) || '0'}`;
+  } catch (error) {
+    console.error('Error signing message:', error);
+    throw new Error('Failed to sign message');
+  }
 };
 
 interface WalletProviderProps {
@@ -71,19 +206,39 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
   // Load wallet and scanned addresses on app start
   useEffect(() => {
-    loadWallet();
-    loadScannedAddresses();
+    const initializeWallet = async () => {
+      try {
+        await loadWallet();
+        await loadScannedAddresses();
+        console.log('✅ Wallet context initialized successfully');
+      } catch (error) {
+        console.error('❌ Error initializing wallet context:', error);
+      }
+    };
+
+    initializeWallet();
   }, []);
 
-  // Create a new wallet
+  // Create a new wallet with real ECDSA cryptography
   const createWallet = async (): Promise<WalletData> => {
     try {
-      const { address, privateKey } = generateMockWallet();
+      console.log('🔐 Generating new ECDSA wallet...');
+      
+      // Generate real cryptographic wallet
+      const { address, privateKey, publicKey } = generateRealWallet();
+      
       const newWalletData: WalletData = {
         address,
         privateKey,
+        publicKey,
         createdAt: new Date(),
       };
+
+      console.log('✅ Wallet generated successfully:', {
+        address,
+        publicKeyLength: publicKey.length,
+        privateKeyLength: privateKey.length,
+      });
 
       // Save to AsyncStorage
       await AsyncStorage.setItem(STORAGE_KEYS.WALLET_DATA, JSON.stringify(newWalletData));
@@ -95,8 +250,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
       return newWalletData;
     } catch (error) {
-      console.error('Error creating wallet:', error);
-      throw new Error('Failed to create wallet');
+      console.error('❌ Error creating wallet:', error);
+      throw new Error('Failed to create cryptographic wallet');
     }
   };
 
@@ -109,12 +264,34 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         // Convert createdAt string back to Date object
         parsedWallet.createdAt = new Date(parsedWallet.createdAt);
         
+        // Handle legacy wallets that might not have publicKey
+        if (!parsedWallet.publicKey && parsedWallet.privateKey) {
+          try {
+            // Derive public key from private key for legacy wallets
+            const cleanKey = parsedWallet.privateKey.replace('0x', '');
+            const keyPair = ec.keyFromPrivate(cleanKey, 'hex');
+            parsedWallet.publicKey = `0x${keyPair.getPublic('hex')}`;
+            
+            // Save updated wallet data with public key
+            await AsyncStorage.setItem(STORAGE_KEYS.WALLET_DATA, JSON.stringify(parsedWallet));
+            console.log('🔄 Updated legacy wallet with public key');
+          } catch (error) {
+            console.error('Failed to derive public key from private key:', error);
+          }
+        }
+        
         setWalletData(parsedWallet);
         setUserWalletAddress(parsedWallet.address);
         setIsLoggedIn(true);
+        
+        console.log('📱 Loaded wallet:', {
+          address: parsedWallet.address,
+          hasPublicKey: !!parsedWallet.publicKey,
+          createdAt: parsedWallet.createdAt,
+        });
       }
     } catch (error) {
-      console.error('Error loading wallet:', error);
+      console.error('❌ Error loading wallet:', error);
     }
   };
 
@@ -214,6 +391,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     loadWallet,
     clearWallet,
     logout,
+    
+    // Crypto utility functions
+    validatePrivateKey,
+    deriveAddressFromPrivateKey,
+    signMessage,
     
     // Scanned addresses functions
     addScannedAddress,

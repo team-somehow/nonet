@@ -2,6 +2,9 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import 'react-native-get-random-values';
+import { useEffect } from 'react';
+import { Platform } from 'react-native';
 
 import { WalletProvider } from '@/contexts/WalletContext';
 import { Colors } from '@/constants/theme';
@@ -25,6 +28,37 @@ const CustomLightTheme = {
 };
 
 export default function RootLayout() {
+  // Handle unhandled promise rejections (Web only)
+  useEffect(() => {
+    // Only add web-specific error handling
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.addEventListener) {
+      const handleUnhandledRejection = (event: any) => {
+        console.warn('Unhandled promise rejection:', event.reason);
+        // Prevent the default behavior (which would crash the app)
+        event.preventDefault();
+      };
+
+      window.addEventListener('unhandledrejection', handleUnhandledRejection);
+      
+      return () => {
+        window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      };
+    }
+
+    // For React Native, we can set up a global error handler
+    if (Platform.OS !== 'web') {
+      const originalConsoleError = console.error;
+      console.error = (...args: any[]) => {
+        // Log errors but don't crash the app
+        originalConsoleError.apply(console, args);
+      };
+
+      return () => {
+        console.error = originalConsoleError;
+      };
+    }
+  }, []);
+
   return (
     <WalletProvider>
       <ThemeProvider value={CustomLightTheme}>
@@ -32,7 +66,6 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           <Stack.Screen 
             name="transaction" 
             options={{ 
@@ -48,6 +81,15 @@ export default function RootLayout() {
             options={{ 
               title: 'Transaction Success',
               headerShown: false,
+            }} 
+          />
+          <Stack.Screen 
+            name="wallet-demo" 
+            options={{ 
+              title: 'Crypto Wallet Demo',
+              headerShown: true,
+              headerStyle: { backgroundColor: Colors.light.background },
+              headerTintColor: Colors.light.text,
             }} 
           />
         </Stack>

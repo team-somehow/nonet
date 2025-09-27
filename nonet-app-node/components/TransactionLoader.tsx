@@ -74,6 +74,7 @@ interface TransactionLoaderProps {
     currency: string;
     toAddress: string;
     chain: string;
+    chainId: number;
   };
 }
 
@@ -82,7 +83,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
   onCancel,
   transactionData,
 }) => {
-  const { signTransaction } = useWallet();
+  const { signTransaction, userWalletAddress } = useWallet();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
@@ -124,6 +125,12 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         return;
       }
 
+      // Use the user's wallet address from component level hook
+
+      // Convert amount to wei (assuming amount is in ETH)
+      const amountInWei = BigInt(Math.floor(parseFloat(transactionData.amount) * Math.pow(10, 18)));
+      const valueHex = '0x' + amountInWei.toString(16);
+
       // Create transaction data for signing
       const txData: TransactionData = {
         to: transactionData.toAddress,
@@ -131,23 +138,46 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         gasLimit: '21000',
         gasPrice: '20000000000', // 20 Gwei
         nonce: '0',
-        chainId: 1, // Ethereum mainnet (can be made dynamic)
+        chainId: transactionData.chainId, // Use selected chain ID
       };
 
       console.log('🔐 Signing transaction in TransactionLoader...');
+      console.log('🌐 Selected chain:', transactionData.chain, 'Chain ID:', transactionData.chainId);
+      console.log('💰 Selected currency:', transactionData.currency);
       console.log('📝 Transaction data:', txData);
 
       // Sign the transaction using the wallet context
       const signedTransaction = await signTransaction(txData);
 
+      // Create the local transaction payload
+      const transactionPayload = {
+        from: userWalletAddress || '0x0000000000000000000000000000000000000000',
+        to: transactionData.toAddress,
+        value: valueHex,
+        gas: '0x' + parseInt(txData.gasLimit || '21000').toString(16),
+        gasPrice: '0x' + parseInt(txData.gasPrice || '20000000000').toString(16),
+        nonce: '0x' + parseInt(txData.nonce || '0').toString(16),
+        chainId: '0x' + txData.chainId.toString(16),
+        data: txData.data || '0x',
+        signature: {
+          v: signedTransaction.v,
+          r: signedTransaction.r,
+          s: signedTransaction.s,
+        }
+      };
+
       console.log('✅ SIGNED TRANSACTION RESULT:');
       console.log('==================================');
       console.log('Transaction Hash:', signedTransaction.transactionHash);
       console.log('Raw Transaction:', signedTransaction.rawTransaction);
-      console.log('Signature R:', signedTransaction.r);
-      console.log('Signature S:', signedTransaction.s);
-      console.log('Signature V:', signedTransaction.v);
       console.log('==================================');
+
+      console.log('📋 LOCAL TRANSACTION PAYLOAD:');
+      console.log('==================================');
+      console.log(JSON.stringify(transactionPayload, null, 2));
+      console.log('==================================');
+
+      // TODO: Send the transaction payload
 
     } catch (error) {
       console.error('❌ Error signing transaction:', error);

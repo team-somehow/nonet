@@ -150,6 +150,7 @@ export default function TransactionPage(): React.JSX.Element {
           currency: selectedCurrency.symbol,
           toAddress: toAddress || '',
           chain: selectedChain.name,
+          chainId: selectedChain.chainId,
         }}
       />
     );

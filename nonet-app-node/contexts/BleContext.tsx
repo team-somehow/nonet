@@ -93,8 +93,13 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
     let entry = masterState.get(id);
 
     if (entry && !entry.isAck && isAck) {
-      masterState.delete(id);
-      entry = undefined;
+      // This is the first chunk of a response to our request.
+      // Instead of deleting the state, we update it to receive the response.
+      entry.isAck = true;
+      entry.isComplete = false;
+      entry.fullMessage = ''; // Clear the old request message text
+      entry.chunks.clear(); // Clear the old request chunks
+      entry.totalChunks = totalChunks; // Update with the new total for the response
     }
 
     if (!entry) {
@@ -119,24 +124,35 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
     if (entry.chunks.size === entry.totalChunks) {
       entry.isComplete = true;
 
+      // --- CORRECTED REASSEMBLY LOGIC ---
       const DATA_PER_CHUNK = 6;
       const fullBinary = new Uint8Array(entry.totalChunks * DATA_PER_CHUNK);
       let offset = 0;
+
+      // This loop ensures chunks are placed in the correct order (1, 2, 3, ...),
+      // regardless of the order they were received in.
       for (let i = 1; i <= entry.totalChunks; i++) {
-        const part = entry.chunks.get(i)!.slice(3);
+        const part = entry.chunks.get(i)!.slice(3); // Get chunk by its number and slice header
         fullBinary.set(part, offset);
         offset += part.length;
       }
+
       const decoder = new TextDecoder();
-      const fullMessage = decoder.decode(fullBinary).replace(/\0/g, '');
+      const fullMessage = decoder.decode(fullBinary).replace(/\0/g, ''); // Remove null padding
       entry.fullMessage = fullMessage;
+      // --- END OF FIX ---
 
       forceUpdate();
 
       if (hasInternet && !entry.isAck) {
         handleApiResponse(id, fullMessage);
       } else if (!hasInternet) {
-        addToBroadcastQueue(id, Array.from(entry.chunks.values()));
+        // Also ensure re-broadcasted chunks are in order
+        const orderedChunks = [];
+        for (let i = 1; i <= entry.totalChunks; i++) {
+          orderedChunks.push(entry.chunks.get(i)!);
+        }
+        addToBroadcastQueue(id, orderedChunks);
       }
     }
   };

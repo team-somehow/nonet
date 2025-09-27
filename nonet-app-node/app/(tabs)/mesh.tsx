@@ -12,7 +12,6 @@ import {
   Badge,
   Surface,
   ProgressBar,
-  Chip,
   Icon,
   IconButton,
 } from 'react-native-paper';

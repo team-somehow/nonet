@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   ScrollView,
-  ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
+import {
+  Text,
+  TextInput,
+  Button,
+  Card,
+  Surface,
+  Chip,
+  Divider,
+  ActivityIndicator,
+  useTheme,
+} from 'react-native-paper';
 import { useWallet } from '@/contexts/WalletContext';
-import { Colors } from '@/constants/theme';
 import { 
   sendSimpleTransaction, 
   getBalance, 
@@ -23,6 +29,7 @@ import {
 
 export default function SimpleTransactionScreen() {
   const { walletData } = useWallet();
+  const theme = useTheme();
   
   const [receiverAddress, setReceiverAddress] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
@@ -141,153 +148,176 @@ export default function SimpleTransactionScreen() {
 
   if (!walletData) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>No wallet found. Please create a wallet first.</Text>
+          <Text variant="bodyLarge" style={{ color: theme.colors.error }}>
+            No wallet found. Please create a wallet first.
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>💸 Simple Transaction</Text>
-          <Text style={styles.subtitle}>Send FLOW on Flow EVM Testnet</Text>
+          <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
+            💸 Simple Transaction
+          </Text>
+          <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+            Send FLOW on Flow EVM Testnet
+          </Text>
         </View>
 
         {/* Wallet Info */}
-        <View style={styles.walletCard}>
-          <Text style={styles.cardTitle}>Your Wallet</Text>
-          
-          <View style={styles.addressContainer}>
-            <Text style={styles.label}>Address:</Text>
-            <Text style={styles.address}>
-              {walletData.address.slice(0, 6)}...{walletData.address.slice(-4)}
-            </Text>
-          </View>
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleLarge" style={styles.cardTitle}>Your Wallet</Text>
+            
+            <View style={styles.infoSection}>
+              <Text variant="labelMedium" style={styles.label}>Address:</Text>
+              <Surface style={styles.addressSurface} elevation={1}>
+                <Text variant="bodyMedium" style={styles.address}>
+                  {walletData.address.slice(0, 6)}...{walletData.address.slice(-4)}
+                </Text>
+              </Surface>
+            </View>
 
-          <View style={styles.balanceContainer}>
-            <Text style={styles.balanceLabel}>Balance</Text>
-            <Text style={styles.balanceText}>
-              {balance} FLOW
-            </Text>
-            <Text style={styles.networkText}>
-              {TESTNET_INFO.name}
-            </Text>
-          </View>
+            <Divider style={styles.divider} />
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoText}>Gas Price: {gasPrice} Gwei</Text>
-            <TouchableOpacity 
-              style={styles.refreshButton} 
-              onPress={loadWalletInfo}
-              disabled={isLoading}
-            >
-              <Text style={styles.refreshButtonText}>
-                {isLoading ? '⏳' : '🔄'} Refresh
+            <View style={styles.balanceSection}>
+              <Text variant="labelMedium" style={styles.balanceLabel}>Balance</Text>
+              <Text variant="headlineSmall" style={styles.balanceText}>
+                {balance} FLOW
               </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+              <Chip mode="outlined" style={styles.networkChip}>
+                {TESTNET_INFO.name}
+              </Chip>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text variant="bodySmall" style={styles.infoText}>Gas Price: {gasPrice} Gwei</Text>
+              <Button 
+                mode="outlined"
+                onPress={loadWalletInfo}
+                disabled={isLoading}
+                loading={isLoading}
+                compact
+              >
+                Refresh
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
 
         {/* Transaction Form */}
-        <View style={styles.transactionCard}>
-          <Text style={styles.cardTitle}>Send Transaction</Text>
-          
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Receiver Address</Text>
-            <TextInput
-              style={styles.input}
-              value={receiverAddress}
-              onChangeText={setReceiverAddress}
-              placeholder="0x..."
-              placeholderTextColor="#999"
-              multiline={false}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleLarge" style={styles.cardTitle}>Send Transaction</Text>
+            
+            <View style={styles.formGroup}>
+              <Text variant="labelMedium" style={styles.label}>Receiver Address</Text>
+              <TextInput
+                mode="outlined"
+                value={receiverAddress}
+                onChangeText={setReceiverAddress}
+                placeholder="0x..."
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.input}
+              />
+            </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Amount (FLOW)</Text>
-            <TextInput
-              style={styles.input}
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.01"
-              keyboardType="numeric"
-              placeholderTextColor="#999"
-            />
-          </View>
+            <View style={styles.formGroup}>
+              <Text variant="labelMedium" style={styles.label}>Amount (FLOW)</Text>
+              <TextInput
+                mode="outlined"
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0.01"
+                keyboardType="numeric"
+                style={styles.input}
+              />
+            </View>
 
-          <TouchableOpacity 
-            style={[styles.sendButton, isLoading && styles.sendButtonDisabled]} 
-            onPress={handleSendTransaction}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.sendButtonText}>Send Transaction</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            <Button
+              mode="contained"
+              onPress={handleSendTransaction}
+              disabled={isLoading}
+              loading={isLoading}
+              style={styles.sendButton}
+              contentStyle={styles.sendButtonContent}
+            >
+              Send Transaction
+            </Button>
+          </Card.Content>
+        </Card>
 
         {/* Last Transaction Result */}
         {lastTransaction && (
-          <View style={styles.resultCard}>
-            <Text style={styles.cardTitle}>Last Transaction</Text>
-            
-            <View style={[
-              styles.statusContainer,
-              lastTransaction.success ? styles.statusSuccess : styles.statusError
-            ]}>
-              <Text style={styles.statusText}>
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text variant="titleLarge" style={styles.cardTitle}>Last Transaction</Text>
+              
+              <Chip
+                mode="flat"
+                style={[
+                  styles.statusChip,
+                  lastTransaction.success ? styles.statusSuccess : styles.statusError
+                ]}
+                textStyle={styles.statusText}
+              >
                 {lastTransaction.success ? '✅ Success' : '❌ Failed'}
-              </Text>
-            </View>
+              </Chip>
 
-            {lastTransaction.success ? (
-              <View style={styles.successDetails}>
-                <Text style={styles.detailLabel}>Transaction Hash:</Text>
-                <Text style={styles.detailValue}>
-                  {lastTransaction.transactionHash?.slice(0, 10)}...{lastTransaction.transactionHash?.slice(-8)}
-                </Text>
-                
-                {lastTransaction.blockNumber && (
-                  <>
-                    <Text style={styles.detailLabel}>Block Number:</Text>
-                    <Text style={styles.detailValue}>{lastTransaction.blockNumber}</Text>
-                  </>
-                )}
-                
-                {lastTransaction.gasUsed && (
-                  <>
-                    <Text style={styles.detailLabel}>Gas Used:</Text>
-                    <Text style={styles.detailValue}>{lastTransaction.gasUsed}</Text>
-                  </>
-                )}
-              </View>
-            ) : (
-              <View style={styles.errorDetails}>
-                <Text style={styles.errorMessage}>{lastTransaction.error}</Text>
-              </View>
-            )}
-          </View>
+              {lastTransaction.success ? (
+                <View style={styles.successDetails}>
+                  <View style={styles.detailRow}>
+                    <Text variant="labelMedium" style={styles.detailLabel}>Transaction Hash:</Text>
+                    <Surface style={styles.detailSurface} elevation={1}>
+                      <Text variant="bodySmall" style={styles.detailValue}>
+                        {lastTransaction.transactionHash?.slice(0, 10)}...{lastTransaction.transactionHash?.slice(-8)}
+                      </Text>
+                    </Surface>
+                  </View>
+                  
+                  {lastTransaction.blockNumber && (
+                    <View style={styles.detailRow}>
+                      <Text variant="labelMedium" style={styles.detailLabel}>Block Number:</Text>
+                      <Chip mode="outlined">{lastTransaction.blockNumber}</Chip>
+                    </View>
+                  )}
+                  
+                  {lastTransaction.gasUsed && (
+                    <View style={styles.detailRow}>
+                      <Text variant="labelMedium" style={styles.detailLabel}>Gas Used:</Text>
+                      <Chip mode="outlined">{lastTransaction.gasUsed}</Chip>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <Surface style={styles.errorSurface} elevation={1}>
+                  <Text variant="bodyMedium" style={styles.errorMessage}>{lastTransaction.error}</Text>
+                </Surface>
+              )}
+            </Card.Content>
+          </Card>
         )}
 
         {/* Testnet Info */}
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>ℹ️ Testnet Information</Text>
-          <Text style={styles.infoText}>• Network: {TESTNET_INFO.name}</Text>
-          <Text style={styles.infoText}>• Currency: {TESTNET_INFO.currency}</Text>
-          <Text style={styles.infoText}>• Get test funds: {TESTNET_INFO.faucet}</Text>
-          <Text style={styles.infoText}>• Explorer: {TESTNET_INFO.explorer}</Text>
-        </View>
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleLarge" style={styles.cardTitle}>ℹ️ Testnet Information</Text>
+            <View style={styles.infoList}>
+              <Text variant="bodyMedium" style={styles.infoText}>• Network: {TESTNET_INFO.name}</Text>
+              <Text variant="bodyMedium" style={styles.infoText}>• Currency: {TESTNET_INFO.currency}</Text>
+              <Text variant="bodyMedium" style={styles.infoText}>• Get test funds: {TESTNET_INFO.faucet}</Text>
+            </View>
+          </Card.Content>
+        </Card>
 
       </ScrollView>
     </SafeAreaView>
@@ -297,7 +327,6 @@ export default function SimpleTransactionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   scrollContainer: {
     flex: 1,
@@ -314,97 +343,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.light.text,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: Colors.light.icon,
     textAlign: 'center',
   },
-  walletCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  transactionCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  resultCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  infoCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 20,
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.light.text,
-    marginBottom: 15,
+    marginBottom: 12,
   },
-  addressContainer: {
-    marginBottom: 15,
+  infoSection: {
+    marginBottom: 12,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 4,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  addressSurface: {
+    padding: 12,
+    borderRadius: 8,
   },
   address: {
-    fontSize: 16,
-    color: Colors.light.icon,
     fontFamily: 'monospace',
   },
-  balanceContainer: {
+  divider: {
+    marginVertical: 12,
+  },
+  balanceSection: {
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 12,
   },
   balanceLabel: {
-    fontSize: 14,
-    color: Colors.light.icon,
     marginBottom: 4,
   },
   balanceText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: Colors.light.tint,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  networkText: {
-    fontSize: 12,
-    color: Colors.light.icon,
+  networkChip: {
+    alignSelf: 'center',
   },
   infoRow: {
     flexDirection: 'row',
@@ -412,54 +391,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoText: {
-    fontSize: 12,
-    color: Colors.light.icon,
+    flex: 1,
     marginBottom: 4,
   },
-  refreshButton: {
-    backgroundColor: Colors.light.tint,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  refreshButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   formGroup: {
-    marginBottom: 15,
+    marginBottom: 16,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-    color: Colors.light.text,
+    marginTop: 4,
   },
   sendButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 50,
+    marginTop: 16,
   },
-  sendButtonDisabled: {
-    opacity: 0.6,
+  sendButtonContent: {
+    paddingVertical: 8,
   },
-  sendButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  statusContainer: {
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 15,
+  statusChip: {
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   statusSuccess: {
     backgroundColor: '#d4edda',
@@ -468,34 +417,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8d7da',
   },
   statusText: {
-    fontSize: 16,
     fontWeight: '600',
   },
   successDetails: {
-    marginTop: 10,
+    gap: 12,
   },
-  errorDetails: {
-    marginTop: 10,
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   detailLabel: {
-    fontSize: 12,
-    color: Colors.light.icon,
-    marginTop: 8,
-    marginBottom: 2,
+    flex: 1,
+    textTransform: 'uppercase',
+  },
+  detailSurface: {
+    padding: 8,
+    borderRadius: 6,
+    flex: 2,
+    marginLeft: 8,
   },
   detailValue: {
-    fontSize: 14,
-    color: Colors.light.text,
     fontFamily: 'monospace',
   },
+  errorSurface: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#f8d7da',
+  },
   errorMessage: {
-    fontSize: 14,
     color: '#721c24',
     textAlign: 'center',
   },
-  errorText: {
-    fontSize: 16,
-    color: '#f44336',
-    textAlign: 'center',
+  infoList: {
+    gap: 4,
   },
 });

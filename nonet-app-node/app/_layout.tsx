@@ -41,6 +41,13 @@ export default function RootLayout() {
               headerTintColor: Colors.light.text,
             }} 
           />
+          <Stack.Screen 
+            name="transaction-success" 
+            options={{ 
+              title: 'Transaction Success',
+              headerShown: false,
+            }} 
+          />
         </Stack>
         <StatusBar style="dark" />
       </ThemeProvider>

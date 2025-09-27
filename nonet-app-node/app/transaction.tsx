@@ -52,18 +52,36 @@ export default function TransactionPage(): React.JSX.Element {
     setShowTransactionLoader(true);
   };
 
+  const generateOfflineTransactionHash = (): string => {
+    // Generate a realistic-looking transaction hash for offline display
+    const chars = '0123456789abcdef';
+    let hash = '0x';
+    for (let i = 0; i < 64; i++) {
+      hash += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return hash;
+  };
+
   const handleTransactionComplete = () => {
     setShowTransactionLoader(false);
-    Alert.alert(
-      'Transaction Successful! 🎉',
-      `Successfully sent ${amount} ${selectedCurrency.symbol} to ${toAddress?.slice(0, 6)}...${toAddress?.slice(-4)} on ${selectedChain.name} network via mesh routing.`,
-      [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]
-    );
+    
+    // Generate offline transaction hash and timestamp
+    const txHash = generateOfflineTransactionHash();
+    const timestamp = Date.now().toString();
+    
+    // Navigate to success page with transaction details
+    router.replace({
+      pathname: '/transaction-success',
+      params: {
+        amount,
+        currency: selectedCurrency.symbol,
+        toAddress: toAddress || '',
+        fromAddress: userWalletAddress || '',
+        chain: selectedChain.name,
+        txHash,
+        timestamp,
+      },
+    });
   };
 
   const handleTransactionCancel = () => {

@@ -1,10 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 import {
   Text,
   Button,
@@ -20,14 +15,16 @@ import { useBle } from '@/contexts/BleContext';
 
 export default function TransactionSuccessPage(): React.JSX.Element {
   const theme = useTheme();
-  const { 
-    amount, 
-    currency, 
-    toAddress, 
-    fromAddress, 
-    chain, 
+  const { stopBroadcasting } = useBle();
+  const {
+    amount,
+    currency,
+    toAddress,
+    fromAddress,
+    chain,
     txHash,
-    timestamp 
+    timestamp,
+    fullMessage,
   } = useLocalSearchParams<{
     amount: string;
     currency: string;
@@ -36,6 +33,7 @@ export default function TransactionSuccessPage(): React.JSX.Element {
     chain: string;
     txHash: string;
     timestamp: string;
+    fullMessage?: string;
   }>();
 
   const handleGoHome = () => {
@@ -46,6 +44,10 @@ export default function TransactionSuccessPage(): React.JSX.Element {
     router.replace('/(tabs)/');
   };
 
+  useEffect(() => {
+    stopBroadcasting();
+  }, []);
+
   // Generate signature string from transaction hash (simplified for demo)
   const generateSignatureString = (hash: string): string => {
     if (!hash) return 'Generating signature...';
@@ -55,12 +57,17 @@ export default function TransactionSuccessPage(): React.JSX.Element {
 
   
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <ScrollView contentContainerStyle={styles.content}>
         {/* Success Header */}
         <View style={styles.successHeader}>
           <Text style={styles.successIcon}>✅</Text>
-          <Text variant="headlineMedium" style={[styles.successTitle, { color: theme.colors.onBackground }]}>
+          <Text
+            variant="headlineMedium"
+            style={[styles.successTitle, { color: theme.colors.onBackground }]}
+          >
             Transaction Sent!
           </Text>
         </View>
@@ -68,7 +75,9 @@ export default function TransactionSuccessPage(): React.JSX.Element {
         {/* QR Code Section - MOST IMPORTANT */}
         <Card style={styles.qrCard} elevation={4}>
           <Card.Content style={styles.qrContent}>
-            <Text variant="titleLarge" style={styles.qrTitle}>Transaction QR Code</Text>
+            <Text variant="titleLarge" style={styles.qrTitle}>
+              Transaction QR Code
+            </Text>
             <View style={styles.qrContainer}>
               {txHash ? (
                 <QRCode
@@ -89,7 +98,9 @@ export default function TransactionSuccessPage(): React.JSX.Element {
         {/* Transaction Hash - SECOND MOST IMPORTANT */}
         <Card style={styles.hashCard} elevation={2}>
           <Card.Content>
-            <Text variant="titleMedium" style={styles.hashTitle}>Transaction Hash</Text>
+            <Text variant="titleMedium" style={styles.hashTitle}>
+              Transaction Hash
+            </Text>
             <Surface style={styles.hashSurface} elevation={1}>
               <Text variant="bodyMedium" style={styles.hashText} selectable>
                 {txHash || 'Generating hash...'}
@@ -101,14 +112,42 @@ export default function TransactionSuccessPage(): React.JSX.Element {
         {/* Hash Signature - THIRD MOST IMPORTANT */}
         <Card style={styles.signatureCard} elevation={2}>
           <Card.Content>
-            <Text variant="titleMedium" style={styles.signatureTitle}>Hash Signature</Text>
+            <Text variant="titleMedium" style={styles.signatureTitle}>
+              Hash Signature
+            </Text>
             <Surface style={styles.signatureSurface} elevation={1}>
-              <Text variant="bodyMedium" style={styles.signatureText} selectable>
+              <Text
+                variant="bodyMedium"
+                style={styles.signatureText}
+                selectable
+              >
                 {generateSignatureString(txHash || '')}
               </Text>
             </Surface>
           </Card.Content>
         </Card>
+
+        {/* Full Message Response - Show if available */}
+        {fullMessage && (
+          <Card style={styles.responseCard} elevation={2}>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.responseTitle}>
+                Network Response
+              </Text>
+              <Surface style={styles.responseSurface} elevation={1}>
+                <ScrollView style={styles.responseScroll} nestedScrollEnabled>
+                  <Text
+                    variant="bodySmall"
+                    style={styles.responseText}
+                    selectable
+                  >
+                    {fullMessage}
+                  </Text>
+                </ScrollView>
+              </Surface>
+            </Card.Content>
+          </Card>
+        )}
 
         {/* Primary Action - GO HOME BUTTON */}
         <Button
@@ -123,30 +162,48 @@ export default function TransactionSuccessPage(): React.JSX.Element {
         {/* Additional Details - Less Important */}
         <Card style={styles.detailsCard}>
           <Card.Content>
-            <Text variant="titleMedium" style={styles.detailsTitle}>Transaction Details</Text>
+            <Text variant="titleMedium" style={styles.detailsTitle}>
+              Transaction Details
+            </Text>
             <Divider style={styles.divider} />
-            
+
             <View style={styles.detailRow}>
-              <Text variant="labelMedium" style={styles.detailLabel}>Amount</Text>
-              <Text variant="bodyMedium" style={styles.detailValue}>{amount} {currency}</Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <Text variant="labelMedium" style={styles.detailLabel}>Network</Text>
-              <Chip mode="outlined" style={styles.chainChip}>{chain}</Chip>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <Text variant="labelMedium" style={styles.detailLabel}>To Address</Text>
-              <Text variant="bodySmall" style={styles.addressText}>
-                {toAddress ? `${toAddress.slice(0, 8)}...${toAddress.slice(-8)}` : 'Unknown'}
+              <Text variant="labelMedium" style={styles.detailLabel}>
+                Amount
+              </Text>
+              <Text variant="bodyMedium" style={styles.detailValue}>
+                {amount} {currency}
               </Text>
             </View>
-            
+
             <View style={styles.detailRow}>
-              <Text variant="labelMedium" style={styles.detailLabel}>Time</Text>
+              <Text variant="labelMedium" style={styles.detailLabel}>
+                Network
+              </Text>
+              <Chip mode="outlined" style={styles.chainChip}>
+                {chain}
+              </Chip>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text variant="labelMedium" style={styles.detailLabel}>
+                To Address
+              </Text>
+              <Text variant="bodySmall" style={styles.addressText}>
+                {toAddress
+                  ? `${toAddress.slice(0, 8)}...${toAddress.slice(-8)}`
+                  : 'Unknown'}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text variant="labelMedium" style={styles.detailLabel}>
+                Time
+              </Text>
               <Text variant="bodyMedium" style={styles.detailValue}>
-                {timestamp ? new Date(parseInt(timestamp)).toLocaleString() : 'Just now'}
+                {timestamp
+                  ? new Date(parseInt(timestamp)).toLocaleString()
+                  : 'Just now'}
               </Text>
             </View>
           </Card.Content>
@@ -174,7 +231,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  
+
   // Success Header
   successHeader: {
     alignItems: 'center',
@@ -189,7 +246,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '700',
   },
-  
+
   // QR Code - MOST IMPORTANT
   qrCard: {
     marginBottom: 24,
@@ -223,7 +280,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
   },
-  
+
   // Transaction Hash - SECOND MOST IMPORTANT
   hashCard: {
     marginBottom: 20,
@@ -245,7 +302,7 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
-  
+
   // Hash Signature - THIRD MOST IMPORTANT
   signatureCard: {
     marginBottom: 24,
@@ -267,7 +324,33 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
-  
+
+  // Network Response Card
+  responseCard: {
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  responseTitle: {
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333',
+  },
+  responseSurface: {
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+    maxHeight: 150,
+  },
+  responseScroll: {
+    maxHeight: 120,
+  },
+  responseText: {
+    fontFamily: 'monospace',
+    fontSize: 12,
+    color: '#333',
+    lineHeight: 18,
+  },
+
   // Primary Home Button - FOURTH MOST IMPORTANT
   homeButton: {
     marginBottom: 32,
@@ -276,7 +359,7 @@ const styles = StyleSheet.create({
   homeButtonContent: {
     paddingVertical: 16,
   },
-  
+
   // Additional Details - Less Important
   detailsCard: {
     marginBottom: 20,
@@ -317,7 +400,7 @@ const styles = StyleSheet.create({
     flex: 2,
     textAlign: 'right',
   },
-  
+
   // Secondary Button
   secondaryButton: {
     marginBottom: 16,

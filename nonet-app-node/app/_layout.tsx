@@ -10,7 +10,9 @@ import { Platform } from 'react-native';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 
 import { WalletProvider } from '@/contexts/WalletContext';
+import { BleProvider } from '@/contexts/BleContext';
 import { Colors } from '@/constants/theme';
+import { ThemeProp } from 'react-native-paper/lib/typescript/types';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -38,50 +40,50 @@ const neoBrutalismPaperTheme = {
     primary: Colors.neoBrutalism.primary,
     onPrimary: Colors.neoBrutalism.textInverse,
     primaryContainer: Colors.neoBrutalism.primaryDark,
-    onPrimaryContainer: Colors.neoBrutalism.textPrimary,
-    
+    onPrimaryContainer: Colors.neoBrutalism.text,
+
     // Secondary colors - Electric Pink
     secondary: Colors.neoBrutalism.secondary,
     onSecondary: Colors.neoBrutalism.textInverse,
     secondaryContainer: Colors.neoBrutalism.secondaryDark,
-    onSecondaryContainer: Colors.neoBrutalism.textPrimary,
-    
+    onSecondaryContainer: Colors.neoBrutalism.text,
+
     // Tertiary colors - Cyan Accent
     tertiary: Colors.neoBrutalism.accent,
     onTertiary: Colors.neoBrutalism.textInverse,
     tertiaryContainer: Colors.neoBrutalism.accent,
     onTertiaryContainer: Colors.neoBrutalism.textInverse,
-    
+
     // Surface colors - Dark theme
     surface: Colors.neoBrutalism.surface,
     onSurface: Colors.neoBrutalism.text,
     surfaceVariant: Colors.neoBrutalism.surfaceAlt,
     onSurfaceVariant: Colors.neoBrutalism.textSecondary,
     surfaceTint: Colors.neoBrutalism.primary,
-    
+
     // Background colors
     background: Colors.neoBrutalism.background,
     onBackground: Colors.neoBrutalism.text,
-    
+
     // Error colors
     error: Colors.neoBrutalism.error,
     onError: Colors.neoBrutalism.textInverse,
     errorContainer: Colors.neoBrutalism.error,
     onErrorContainer: Colors.neoBrutalism.textInverse,
-    
+
     // Outline colors
     outline: Colors.neoBrutalism.border,
     outlineVariant: Colors.neoBrutalism.borderSubtle,
-    
+
     // Inverse colors
-    inverseSurface: Colors.neoBrutalism.textPrimary,
+    inverseSurface: Colors.neoBrutalism.text,
     onInverseSurface: Colors.neoBrutalism.textInverse,
     inversePrimary: Colors.neoBrutalism.primaryDark,
-    
+
     // Shadow and scrim
     shadow: Colors.neoBrutalism.shadow,
     scrim: Colors.neoBrutalism.background,
-    
+
     // Elevation colors for Neo-Brutalism effect
     elevation: {
       level0: 'transparent',
@@ -135,7 +137,11 @@ export default function RootLayout() {
   // Handle unhandled promise rejections (Web only)
   useEffect(() => {
     // Only add web-specific error handling
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.addEventListener) {
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      window.addEventListener
+    ) {
       const handleUnhandledRejection = (event: any) => {
         console.warn('Unhandled promise rejection:', event.reason);
         // Prevent the default behavior (which would crash the app)
@@ -143,9 +149,12 @@ export default function RootLayout() {
       };
 
       window.addEventListener('unhandledrejection', handleUnhandledRejection);
-      
+
       return () => {
-        window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+        window.removeEventListener(
+          'unhandledrejection',
+          handleUnhandledRejection
+        );
       };
     }
 
@@ -162,54 +171,55 @@ export default function RootLayout() {
       };
     }
   }, []);
-
   return (
-    <PaperProvider theme={neoBrutalismPaperTheme}>
-      <WalletProvider>
-        <ThemeProvider value={CustomLightTheme}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="welcome" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen 
-            name="transaction" 
-            options={{ 
-              title: 'Send Transaction',
-              presentation: 'modal',
-              headerShown: true,
-              headerStyle: { backgroundColor: Colors.light.background },
-              headerTintColor: Colors.light.text,
-            }} 
-          />
-          <Stack.Screen 
-            name="transaction-success" 
-            options={{ 
-              title: 'Transaction Success',
-              headerShown: false,
-            }} 
-          />
-          <Stack.Screen 
-            name="wallet-demo" 
-            options={{ 
-              title: 'Crypto Wallet Demo',
-              headerShown: true,
-              headerStyle: { backgroundColor: Colors.light.background },
-              headerTintColor: Colors.light.text,
-            }} 
-          />
-          <Stack.Screen 
-            name="simple-transaction" 
-            options={{ 
-              title: 'Simple Transaction',
-              headerShown: true,
-              headerStyle: { backgroundColor: Colors.light.background },
-              headerTintColor: Colors.light.text,
-            }} 
-          />
-        </Stack>
-        <StatusBar style="dark" />
-        </ThemeProvider>
-      </WalletProvider>
+    <PaperProvider theme={neoBrutalismPaperTheme as ThemeProp}>
+      <BleProvider>
+        <WalletProvider>
+          <ThemeProvider value={CustomLightTheme}>
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="welcome" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="transaction"
+                options={{
+                  title: 'Send Transaction',
+                  presentation: 'modal',
+                  headerShown: true,
+                  headerStyle: { backgroundColor: Colors.light.background },
+                  headerTintColor: Colors.light.text,
+                }}
+              />
+              <Stack.Screen
+                name="transaction-success"
+                options={{
+                  title: 'Transaction Success',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="wallet-demo"
+                options={{
+                  title: 'Crypto Wallet Demo',
+                  headerShown: true,
+                  headerStyle: { backgroundColor: Colors.light.background },
+                  headerTintColor: Colors.light.text,
+                }}
+              />
+              <Stack.Screen
+                name="simple-transaction"
+                options={{
+                  title: 'Simple Transaction',
+                  headerShown: true,
+                  headerStyle: { backgroundColor: Colors.light.background },
+                  headerTintColor: Colors.light.text,
+                }}
+              />
+            </Stack>
+            <StatusBar style="dark" />
+          </ThemeProvider>
+        </WalletProvider>
+      </BleProvider>
     </PaperProvider>
   );
 }

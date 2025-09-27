@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Colors } from '@/constants/theme';
 import { useWallet } from '@/contexts/WalletContext';
 
 export default function IndexPage(): React.JSX.Element {
   const { isLoggedIn } = useWallet();
+  const theme = useTheme();
 
   useEffect(() => {
     // Small delay to ensure wallet context is loaded
@@ -24,8 +25,11 @@ export default function IndexPage(): React.JSX.Element {
 
   // Show loading spinner while determining where to navigate
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={Colors.light.tint} />
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ActivityIndicator size="large" />
+      <Text variant="bodyMedium" style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
+        Loading...
+      </Text>
     </View>
   );
 }
@@ -35,6 +39,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.light.background,
+  },
+  loadingText: {
+    marginTop: 16,
   },
 });

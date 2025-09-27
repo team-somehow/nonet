@@ -15,3 +15,5 @@
     }
 }
 ```
+
+ERC 20 Hedera Testnet Contract Addresses: 0xc6C46289fA5FdC583Cdb5e5C2900af4333423787

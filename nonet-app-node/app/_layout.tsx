@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
+import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 
 import { WalletProvider } from '@/contexts/WalletContext';
 import { Colors } from '@/constants/theme';
@@ -15,7 +16,7 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-// Custom light theme
+// Custom light theme for navigation
 const CustomLightTheme = {
   ...DefaultTheme,
   colors: {
@@ -26,6 +27,22 @@ const CustomLightTheme = {
     text: '#000000',
     border: '#E5E5EA',
     notification: '#007AFF',
+  },
+};
+
+// Custom Paper theme
+const paperTheme = {
+  ...MD3LightTheme,
+  colors: {
+    ...MD3LightTheme.colors,
+    primary: Colors.light.tint,
+    secondary: '#6C7B7F',
+    tertiary: '#7D5260',
+    surface: '#FFFFFF',
+    surfaceVariant: '#F3F3F3',
+    background: Colors.light.background,
+    onBackground: Colors.light.text,
+    onSurface: Colors.light.text,
   },
 };
 
@@ -62,8 +79,9 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <WalletProvider>
-      <ThemeProvider value={CustomLightTheme}>
+    <PaperProvider theme={paperTheme}>
+      <WalletProvider>
+        <ThemeProvider value={CustomLightTheme}>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
@@ -105,7 +123,8 @@ export default function RootLayout() {
           />
         </Stack>
         <StatusBar style="dark" />
-      </ThemeProvider>
-    </WalletProvider>
+        </ThemeProvider>
+      </WalletProvider>
+    </PaperProvider>
   );
 }

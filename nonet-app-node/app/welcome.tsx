@@ -1,21 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Image,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
+import { 
+  Text, 
+  Button, 
+  Card, 
+  Surface,
+  ActivityIndicator,
+  useTheme 
+} from 'react-native-paper';
 import { router } from 'expo-router';
-import { Colors } from '@/constants/theme';
 import { useWallet } from '@/contexts/WalletContext';
 
 export default function WelcomePage(): React.JSX.Element {
   const { isLoggedIn, createWallet } = useWallet();
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
+  const theme = useTheme();
 
   useEffect(() => {
     // Check if user already has a wallet and redirect to tabs
@@ -43,67 +47,82 @@ export default function WelcomePage(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
         {/* App Logo/Icon */}
         <View style={styles.logoContainer}>
-          <View style={styles.logoPlaceholder}>
+          <Surface style={styles.logoSurface} elevation={2}>
             <Text style={styles.logoIcon}>🌐</Text>
-          </View>
-          <Text style={styles.appName}>NoNet</Text>
-          <Text style={styles.tagline}>Offline Mesh Transactions</Text>
+          </Surface>
+          <Text variant="headlineLarge" style={[styles.appName, { color: theme.colors.onBackground }]}>
+            NoNet
+          </Text>
+          <Text variant="bodyMedium" style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}>
+            Offline Mesh Transactions
+          </Text>
         </View>
 
         {/* Welcome Content */}
         <View style={styles.welcomeContent}>
-          <Text style={styles.welcomeTitle}>Welcome to NoNet</Text>
-          <Text style={styles.welcomeDescription}>
+          <Text variant="headlineMedium" style={[styles.welcomeTitle, { color: theme.colors.onBackground }]}>
+            Welcome to NoNet
+          </Text>
+          <Text variant="bodyLarge" style={[styles.welcomeDescription, { color: theme.colors.onSurfaceVariant }]}>
             Send crypto transactions offline using mesh network technology.
           </Text>
           
           <View style={styles.featuresContainer}>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>📡</Text>
-              <Text style={styles.featureTitle}>Offline Transactions</Text>
-            </View>
+            <Card style={styles.featureCard} mode="contained">
+              <Card.Content style={styles.feature}>
+                <Text style={styles.featureIcon}>📡</Text>
+                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+                  Offline Transactions
+                </Text>
+              </Card.Content>
+            </Card>
 
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>🔐</Text>
-              <Text style={styles.featureTitle}>Secure & Encrypted</Text>
-            </View>
+            <Card style={styles.featureCard} mode="contained">
+              <Card.Content style={styles.feature}>
+                <Text style={styles.featureIcon}>🔐</Text>
+                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+                  Secure & Encrypted
+                </Text>
+              </Card.Content>
+            </Card>
 
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>🚀</Text>
-              <Text style={styles.featureTitle}>Multi-Chain Support</Text>
-            </View>
+            <Card style={styles.featureCard} mode="contained">
+              <Card.Content style={styles.feature}>
+                <Text style={styles.featureIcon}>🚀</Text>
+                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+                  Multi-Chain Support
+                </Text>
+              </Card.Content>
+            </Card>
           </View>
         </View>
 
         {/* Create Wallet Button */}
         <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={[styles.createWalletButton, isCreatingWallet && styles.createWalletButtonDisabled]}
+          <Button
+            mode="contained"
             onPress={handleCreateWallet}
             disabled={isCreatingWallet}
+            loading={isCreatingWallet}
+            style={styles.createWalletButton}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
           >
-            {isCreatingWallet ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color="white" size="small" />
-                <Text style={styles.createWalletButtonText}>Creating Wallet...</Text>
-              </View>
-            ) : (
-              <Text style={styles.createWalletButtonText}>Create Secure Wallet</Text>
-            )}
-          </TouchableOpacity>
+            {isCreatingWallet ? 'Creating Wallet...' : 'Create Secure Wallet'}
+          </Button>
 
-          <Text style={styles.disclaimer}>
+          <Text variant="bodySmall" style={[styles.disclaimer, { color: theme.colors.onSurfaceVariant }]}>
             Your private keys are stored securely on your device.
           </Text>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text variant="bodySmall" style={[styles.footerText, { color: theme.colors.onSurfaceVariant }]}>
             Powered by mesh network technology
           </Text>
         </View>
@@ -115,7 +134,6 @@ export default function WelcomePage(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   content: {
     flex: 1,
@@ -127,118 +145,68 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 30,
   },
-  logoPlaceholder: {
+  logoSurface: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#E8F4FD',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   logoIcon: {
     fontSize: 50,
   },
   appName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: Colors.light.text,
     marginBottom: 8,
+    textAlign: 'center',
   },
   tagline: {
-    fontSize: 16,
-    color: Colors.light.icon,
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   welcomeContent: {
     flex: 1,
     justifyContent: 'center',
   },
   welcomeTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.light.text,
     textAlign: 'center',
     marginBottom: 15,
   },
   welcomeDescription: {
-    fontSize: 16,
-    color: Colors.light.icon,
     textAlign: 'center',
-    lineHeight: 22,
     marginBottom: 30,
     paddingHorizontal: 20,
   },
   featuresContainer: {
-    gap: 15,
+    gap: 12,
+  },
+  featureCard: {
+    marginBottom: 8,
   },
   feature: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    paddingVertical: 8,
   },
   featureIcon: {
     fontSize: 20,
     marginRight: 12,
   },
-  featureTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.light.text,
-    flex: 1,
-  },
   actionContainer: {
     marginBottom: 10,
   },
   createWalletButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
     marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 12,
   },
-  createWalletButtonDisabled: {
-    backgroundColor: Colors.light.icon,
+  buttonContent: {
+    paddingVertical: 8,
   },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  createWalletButtonText: {
-    color: 'white',
-    fontSize: 18,
+  buttonLabel: {
+    fontSize: 16,
     fontWeight: '600',
   },
   disclaimer: {
-    fontSize: 12,
-    color: Colors.light.icon,
     textAlign: 'center',
     lineHeight: 16,
   },
@@ -247,8 +215,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   footerText: {
-    fontSize: 12,
-    color: Colors.light.icon,
     fontStyle: 'italic',
+    textAlign: 'center',
   },
 });

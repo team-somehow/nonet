@@ -1,28 +1,57 @@
 /**
- * Simple light mode theme for the app.
+ * Bold, high-contrast, modern design with sharp edges and striking visuals
  */
 
 import { Platform } from 'react-native';
+import { NeoBrutalismColors } from './neoBrutalism';
 
-const tintColor = '#007AFF';
+const tintColor = NeoBrutalismColors.primary; // Electric Green
 
 export const Colors = {
   light: {
     text: '#000000',
     background: '#FFFFFF',
-    tint: tintColor,
+    tint: '#007AFF',
     icon: '#8E8E93',
     tabIconDefault: '#8E8E93',
-    tabIconSelected: tintColor,
+    tabIconSelected: '#007AFF',
   },
-  // Keep dark for compatibility but use light colors
   dark: {
     text: '#000000',
     background: '#FFFFFF',
-    tint: tintColor,
+    tint: '#007AFF',
     icon: '#8E8E93',
     tabIconDefault: '#8E8E93',
-    tabIconSelected: tintColor,
+    tabIconSelected: '#007AFF',
+  },
+  // Neo-Brutalism Theme - Primary theme for hackathon
+  neoBrutalism: {
+    text: NeoBrutalismColors.textPrimary,
+    textSecondary: NeoBrutalismColors.textSecondary,
+    textTertiary: NeoBrutalismColors.textTertiary,
+    textInverse: NeoBrutalismColors.textInverse,
+    background: NeoBrutalismColors.background,
+    backgroundAlt: NeoBrutalismColors.backgroundAlt,
+    surface: NeoBrutalismColors.surface,
+    surfaceAlt: NeoBrutalismColors.surfaceAlt,
+    primary: NeoBrutalismColors.primary,
+    primaryDark: NeoBrutalismColors.primaryDark,
+    primaryLight: NeoBrutalismColors.primaryLight,
+    secondary: NeoBrutalismColors.secondary,
+    secondaryDark: NeoBrutalismColors.secondaryDark,
+    accent: NeoBrutalismColors.accent,
+    warning: NeoBrutalismColors.warning,
+    error: NeoBrutalismColors.error,
+    success: NeoBrutalismColors.success,
+    border: NeoBrutalismColors.border,
+    borderAlt: NeoBrutalismColors.borderAlt,
+    borderSubtle: NeoBrutalismColors.borderSubtle,
+    shadow: NeoBrutalismColors.shadow,
+    shadowAlt: NeoBrutalismColors.shadowAlt,
+    tint: NeoBrutalismColors.primary,
+    icon: NeoBrutalismColors.textSecondary,
+    tabIconDefault: NeoBrutalismColors.textSecondary,
+    tabIconSelected: NeoBrutalismColors.primary,
   },
 };
 

@@ -15,6 +15,14 @@ import {
 } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
+import { 
+  NeoBrutalButton, 
+  NeoBrutalCard, 
+  NeoBrutalHeader, 
+  NeoBrutalBadge,
+  NeoBrutalDivider 
+} from '@/components/NeoBrutalismComponents';
+import { NeoBrutalismColors } from '@/constants/neoBrutalism';
 
 export default function WelcomePage(): React.JSX.Element {
   const { isLoggedIn, createWallet } = useWallet();
@@ -49,82 +57,30 @@ export default function WelcomePage(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
-        {/* App Logo/Icon */}
-        <View style={styles.logoContainer}>
-          <Surface style={styles.logoSurface} elevation={2}>
+        {/* Logo Section */}
+        <View style={styles.logoSection}>
+          <View style={styles.logoContainer}>
             <Text style={styles.logoIcon}>🌐</Text>
-          </Surface>
-          <Text variant="headlineLarge" style={[styles.appName, { color: theme.colors.onBackground }]}>
-            NoNet
-          </Text>
-          <Text variant="bodyMedium" style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}>
-            Offline Mesh Transactions
-          </Text>
-        </View>
-
-        {/* Welcome Content */}
-        <View style={styles.welcomeContent}>
-          <Text variant="headlineMedium" style={[styles.welcomeTitle, { color: theme.colors.onBackground }]}>
-            Welcome to NoNet
-          </Text>
-          <Text variant="bodyLarge" style={[styles.welcomeDescription, { color: theme.colors.onSurfaceVariant }]}>
-            Send crypto transactions offline using mesh network technology.
-          </Text>
-          
-          <View style={styles.featuresContainer}>
-            <Card style={styles.featureCard} mode="contained">
-              <Card.Content style={styles.feature}>
-                <Text style={styles.featureIcon}>📡</Text>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-                  Offline Transactions
-                </Text>
-              </Card.Content>
-            </Card>
-
-            <Card style={styles.featureCard} mode="contained">
-              <Card.Content style={styles.feature}>
-                <Text style={styles.featureIcon}>🔐</Text>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-                  Secure & Encrypted
-                </Text>
-              </Card.Content>
-            </Card>
-
-            <Card style={styles.featureCard} mode="contained">
-              <Card.Content style={styles.feature}>
-                <Text style={styles.featureIcon}>🚀</Text>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-                  Multi-Chain Support
-                </Text>
-              </Card.Content>
-            </Card>
           </View>
+          <Text style={styles.appName}>NoNet</Text>
         </View>
 
         {/* Create Wallet Button */}
-        <View style={styles.actionContainer}>
-          <Button
-            mode="contained"
+        <View style={styles.buttonSection}>
+          <NeoBrutalButton
+            title={isCreatingWallet ? "Creating Wallet..." : "Create Wallet"}
             onPress={handleCreateWallet}
+            variant="primary"
+            size="large"
             disabled={isCreatingWallet}
-            loading={isCreatingWallet}
-            style={styles.createWalletButton}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-          >
-            {isCreatingWallet ? 'Creating Wallet...' : 'Create Secure Wallet'}
-          </Button>
-
-          <Text variant="bodySmall" style={[styles.disclaimer, { color: theme.colors.onSurfaceVariant }]}>
-            Your private keys are stored securely on your device.
-          </Text>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text variant="bodySmall" style={[styles.footerText, { color: theme.colors.onSurfaceVariant }]}>
-            Powered by mesh network technology
-          </Text>
+            style={styles.createButton}
+          />
+          
+          {isCreatingWallet && (
+            <View style={styles.loadingIndicator}>
+              <ActivityIndicator size="small" color={NeoBrutalismColors.primary} />
+            </View>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -137,85 +93,53 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  
+  // Logo Section
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 80,
   },
   logoContainer: {
-    alignItems: 'center',
-    marginTop: 30,
-    marginBottom: 30,
-  },
-  logoSurface: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: NeoBrutalismColors.surfaceAlt,
+    borderWidth: 4,
+    borderColor: NeoBrutalismColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 32,
+    shadowColor: NeoBrutalismColors.primary,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 0,
+    elevation: 8,
   },
   logoIcon: {
-    fontSize: 50,
+    fontSize: 60,
   },
   appName: {
-    marginBottom: 8,
-    textAlign: 'center',
+    fontSize: 48,
+    fontWeight: '900',
+    color: NeoBrutalismColors.textPrimary,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
-  tagline: {
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  welcomeContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  welcomeTitle: {
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  welcomeDescription: {
-    textAlign: 'center',
-    marginBottom: 30,
-    paddingHorizontal: 20,
-  },
-  featuresContainer: {
-    gap: 12,
-  },
-  featureCard: {
-    marginBottom: 8,
-  },
-  feature: {
-    flexDirection: 'row',
+  
+  // Button Section
+  buttonSection: {
     alignItems: 'center',
-    paddingVertical: 8,
+    width: '100%',
   },
-  featureIcon: {
-    fontSize: 20,
-    marginRight: 12,
+  createButton: {
+    minWidth: 280,
+    marginBottom: 16,
   },
-  actionContainer: {
-    marginBottom: 10,
-  },
-  createWalletButton: {
-    marginBottom: 15,
-    borderRadius: 12,
-  },
-  buttonContent: {
-    paddingVertical: 8,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disclaimer: {
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  footer: {
-    alignItems: 'center',
-    paddingBottom: 10,
-  },
-  footerText: {
-    fontStyle: 'italic',
-    textAlign: 'center',
+  loadingIndicator: {
+    marginTop: 16,
   },
 });

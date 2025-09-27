@@ -30,19 +30,104 @@ const CustomLightTheme = {
   },
 };
 
-// Custom Paper theme
-const paperTheme = {
+const neoBrutalismPaperTheme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    primary: Colors.light.tint,
-    secondary: '#6C7B7F',
-    tertiary: '#7D5260',
-    surface: '#FFFFFF',
-    surfaceVariant: '#F3F3F3',
-    background: Colors.light.background,
-    onBackground: Colors.light.text,
-    onSurface: Colors.light.text,
+    // Primary colors - Electric Green
+    primary: Colors.neoBrutalism.primary,
+    onPrimary: Colors.neoBrutalism.textInverse,
+    primaryContainer: Colors.neoBrutalism.primaryDark,
+    onPrimaryContainer: Colors.neoBrutalism.textPrimary,
+    
+    // Secondary colors - Electric Pink
+    secondary: Colors.neoBrutalism.secondary,
+    onSecondary: Colors.neoBrutalism.textInverse,
+    secondaryContainer: Colors.neoBrutalism.secondaryDark,
+    onSecondaryContainer: Colors.neoBrutalism.textPrimary,
+    
+    // Tertiary colors - Cyan Accent
+    tertiary: Colors.neoBrutalism.accent,
+    onTertiary: Colors.neoBrutalism.textInverse,
+    tertiaryContainer: Colors.neoBrutalism.accent,
+    onTertiaryContainer: Colors.neoBrutalism.textInverse,
+    
+    // Surface colors - Dark theme
+    surface: Colors.neoBrutalism.surface,
+    onSurface: Colors.neoBrutalism.text,
+    surfaceVariant: Colors.neoBrutalism.surfaceAlt,
+    onSurfaceVariant: Colors.neoBrutalism.textSecondary,
+    surfaceTint: Colors.neoBrutalism.primary,
+    
+    // Background colors
+    background: Colors.neoBrutalism.background,
+    onBackground: Colors.neoBrutalism.text,
+    
+    // Error colors
+    error: Colors.neoBrutalism.error,
+    onError: Colors.neoBrutalism.textInverse,
+    errorContainer: Colors.neoBrutalism.error,
+    onErrorContainer: Colors.neoBrutalism.textInverse,
+    
+    // Outline colors
+    outline: Colors.neoBrutalism.border,
+    outlineVariant: Colors.neoBrutalism.borderSubtle,
+    
+    // Inverse colors
+    inverseSurface: Colors.neoBrutalism.textPrimary,
+    onInverseSurface: Colors.neoBrutalism.textInverse,
+    inversePrimary: Colors.neoBrutalism.primaryDark,
+    
+    // Shadow and scrim
+    shadow: Colors.neoBrutalism.shadow,
+    scrim: Colors.neoBrutalism.background,
+    
+    // Elevation colors for Neo-Brutalism effect
+    elevation: {
+      level0: 'transparent',
+      level1: Colors.neoBrutalism.surface,
+      level2: Colors.neoBrutalism.surfaceAlt,
+      level3: Colors.neoBrutalism.surfaceAlt,
+      level4: Colors.neoBrutalism.surfaceAlt,
+      level5: Colors.neoBrutalism.surfaceAlt,
+    },
+  },
+  // Custom font configuration for bold Neo-Brutalism look
+  fonts: {
+    ...MD3LightTheme.fonts,
+    displayLarge: {
+      ...MD3LightTheme.fonts.displayLarge,
+      fontWeight: '900', // Extra bold
+    },
+    displayMedium: {
+      ...MD3LightTheme.fonts.displayMedium,
+      fontWeight: '800',
+    },
+    displaySmall: {
+      ...MD3LightTheme.fonts.displaySmall,
+      fontWeight: '800',
+    },
+    headlineLarge: {
+      ...MD3LightTheme.fonts.headlineLarge,
+      fontWeight: '800',
+    },
+    headlineMedium: {
+      ...MD3LightTheme.fonts.headlineMedium,
+      fontWeight: '700',
+    },
+    titleLarge: {
+      ...MD3LightTheme.fonts.titleLarge,
+      fontWeight: '700',
+    },
+    titleMedium: {
+      ...MD3LightTheme.fonts.titleMedium,
+      fontWeight: '600',
+    },
+    labelLarge: {
+      ...MD3LightTheme.fonts.labelLarge,
+      fontWeight: '600',
+      textTransform: 'uppercase', // Neo-Brutalism style
+    },
   },
 };
 
@@ -79,7 +164,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <PaperProvider theme={paperTheme}>
+    <PaperProvider theme={neoBrutalismPaperTheme}>
       <WalletProvider>
         <ThemeProvider value={CustomLightTheme}>
         <Stack>

@@ -6,11 +6,20 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  SafeAreaView,
 } from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { Colors } from "@/constants/theme";
 import { useWallet, ScannedAddress } from "@/contexts/WalletContext";
+import { 
+  NeoBrutalButton, 
+  NeoBrutalCard, 
+  NeoBrutalHeader, 
+  NeoBrutalBadge,
+  NeoBrutalDivider 
+} from '@/components/NeoBrutalismComponents';
+import { NeoBrutalismColors } from '@/constants/neoBrutalism';
 
 export default function Scan(): React.JSX.Element {
   const [permission, requestPermission] = useCameraPermissions();
@@ -97,28 +106,32 @@ export default function Scan(): React.JSX.Element {
 
   if (!permission) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>Requesting camera permission...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.message}>Requesting camera permission...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>
-          Camera permission is required to scan QR codes
-        </Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.message}>
+            Camera permission is required to scan QR codes
+          </Text>
+          <TouchableOpacity style={styles.button} onPress={requestPermission}>
+            <Text style={styles.buttonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (isScanning) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <CameraView
           style={styles.camera}
           facing={facing}
@@ -140,12 +153,13 @@ export default function Scan(): React.JSX.Element {
             </TouchableOpacity>
           </View>
         </CameraView>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
       <Text style={styles.title}>QR Code Scanner</Text>
 
       <TouchableOpacity
@@ -184,53 +198,72 @@ export default function Scan(): React.JSX.Element {
           />
         )}
       </View>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
-    padding: 20,
+    backgroundColor: NeoBrutalismColors.background,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: Colors.light.text,
+    fontSize: 32,
+    fontWeight: "800",
+    color: NeoBrutalismColors.textPrimary,
     textAlign: "center",
-    marginBottom: 30,
-    marginTop: 20,
+    marginBottom: 24,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   message: {
     fontSize: 16,
-    color: Colors.light.text,
+    color: NeoBrutalismColors.textPrimary,
     textAlign: "center",
     marginBottom: 20,
   },
   button: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: NeoBrutalismColors.primary,
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 8,
     alignSelf: "center",
+    borderWidth: 3,
+    borderColor: NeoBrutalismColors.primary,
   },
   buttonText: {
-    color: "white",
+    color: NeoBrutalismColors.textInverse,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    textTransform: "uppercase",
   },
   scanButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 15,
-    borderRadius: 10,
-    marginBottom: 30,
+    backgroundColor: NeoBrutalismColors.primary,
+    borderColor: NeoBrutalismColors.primary,
+    borderWidth: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    marginBottom: 32,
+    shadowColor: NeoBrutalismColors.primary,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 0,
+    elevation: 8,
   },
   scanButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "600",
+    color: NeoBrutalismColors.textInverse,
+    fontSize: 16,
+    fontWeight: "800",
     textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   camera: {
     flex: 1,
@@ -279,30 +312,35 @@ const styles = StyleSheet.create({
   },
   addressesTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: Colors.light.text,
+    fontWeight: "700",
+    color: NeoBrutalismColors.textPrimary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   clearText: {
-    color: Colors.light.tint,
+    color: NeoBrutalismColors.primary,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
+    textTransform: "uppercase",
   },
   addressesList: {
     flex: 1,
   },
   addressItem: {
-    backgroundColor: "white",
-    padding: 15,
+    backgroundColor: NeoBrutalismColors.surface,
+    padding: 16,
     borderRadius: 8,
-    marginBottom: 10,
-    shadowColor: "#000",
+    marginBottom: 12,
+    borderWidth: 3,
+    borderColor: NeoBrutalismColors.borderSubtle,
+    shadowColor: NeoBrutalismColors.primary,
     shadowOffset: {
-      width: 0,
-      height: 1,
+      width: 2,
+      height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.2,
+    shadowRadius: 0,
+    elevation: 4,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -314,23 +352,27 @@ const styles = StyleSheet.create({
   addressText: {
     fontSize: 14,
     fontFamily: "monospace",
-    color: Colors.light.text,
+    color: NeoBrutalismColors.textPrimary,
     marginBottom: 5,
+    fontWeight: "600",
   },
   sendButton: {
-    backgroundColor: Colors.light.tint,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: NeoBrutalismColors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 6,
+    borderWidth: 2,
+    borderColor: NeoBrutalismColors.primary,
   },
   sendButtonText: {
-    color: "white",
+    color: NeoBrutalismColors.textInverse,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
+    textTransform: "uppercase",
   },
   timestampText: {
     fontSize: 12,
-    color: Colors.light.icon,
+    color: NeoBrutalismColors.textSecondary,
   },
   emptyState: {
     flex: 1,
@@ -339,12 +381,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: Colors.light.icon,
-    marginBottom: 5,
+    color: NeoBrutalismColors.textSecondary,
+    marginBottom: 8,
+    fontWeight: "600",
   },
   emptySubText: {
     fontSize: 14,
-    color: Colors.light.icon,
+    color: NeoBrutalismColors.textTertiary,
     textAlign: "center",
   },
 });

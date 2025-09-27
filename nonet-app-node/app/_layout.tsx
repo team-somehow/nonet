@@ -1,8 +1,10 @@
+// Import polyfills FIRST
+import '../polyfills';
+
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-import 'react-native-get-random-values';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 

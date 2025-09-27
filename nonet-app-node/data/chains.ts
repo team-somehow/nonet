@@ -9,7 +9,7 @@ export interface ChainConfig {
   chainId: number;
   rpcUrl: string;
   explorer: string;
-  faucet: string;
+  faucet?: string;
   nativeCurrency: {
     name: string;
     symbol: string;
@@ -64,7 +64,6 @@ export const CHAINS: Record<string, ChainConfig> = {
     },
     features: ['evm-compatible', 'smart-contracts', 'nft-support'],
   },
-  
   hedera: {
     id: 'hedera',
     name: 'Hedera Testnet',
@@ -87,78 +86,6 @@ export const CHAINS: Record<string, ChainConfig> = {
       defaultGasPrice: '7000000000', // 7 Gwei
     },
     features: ['evm-compatible', 'fast-finality', 'carbon-negative'],
-  },
-
-  sepolia: {
-    id: 'sepolia',
-    name: 'Sepolia Testnet',
-    displayName: 'Ethereum Sepolia',
-    symbol: 'ETH',
-    chainId: 11155111,
-    rpcUrl: 'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-    explorer: 'https://sepolia.etherscan.io',
-    faucet: 'https://sepoliafaucet.com',
-    nativeCurrency: {
-      name: 'Ethereum',
-      symbol: 'ETH',
-      decimals: 18,
-    },
-    imageUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-    testnet: true,
-    type: 'evm',
-    gasSettings: {
-      defaultGasLimit: '21000',
-      defaultGasPrice: '20000000000', // 20 Gwei
-    },
-    features: ['evm-native', 'smart-contracts', 'defi-ecosystem'],
-  },
-
-  polygonMumbai: {
-    id: 'polygonMumbai',
-    name: 'Polygon Mumbai',
-    displayName: 'Polygon',
-    symbol: 'MATIC',
-    chainId: 80001,
-    rpcUrl: 'https://polygon-mumbai.g.alchemy.com/v2/demo',
-    explorer: 'https://mumbai.polygonscan.com',
-    faucet: 'https://faucet.polygon.technology',
-    nativeCurrency: {
-      name: 'MATIC',
-      symbol: 'MATIC',
-      decimals: 18,
-    },
-    imageUrl: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-    testnet: true,
-    type: 'evm',
-    gasSettings: {
-      defaultGasLimit: '21000',
-      defaultGasPrice: '1000000000', // 1 Gwei
-    },
-    features: ['evm-compatible', 'low-fees', 'fast-transactions'],
-  },
-
-  bscTestnet: {
-    id: 'bscTestnet',
-    name: 'BSC Testnet',
-    displayName: 'Binance Smart Chain',
-    symbol: 'BNB',
-    chainId: 97,
-    rpcUrl: 'https://data-seed-prebsc-1-s1.binance.org:8545',
-    explorer: 'https://testnet.bscscan.com',
-    faucet: 'https://testnet.binance.org/faucet-smart',
-    nativeCurrency: {
-      name: 'BNB',
-      symbol: 'BNB',
-      decimals: 18,
-    },
-    imageUrl: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-    testnet: true,
-    type: 'evm',
-    gasSettings: {
-      defaultGasLimit: '21000',
-      defaultGasPrice: '5000000000', // 5 Gwei
-    },
-    features: ['evm-compatible', 'bep20-tokens', 'defi-ecosystem'],
   },
 };
 
@@ -286,5 +213,5 @@ export const getChainByChainId = (chainId: number): ChainConfig | undefined => {
 export const CHAINS_ARRAY = Object.values(CHAINS);
 export const CURRENCIES_ARRAY = Object.values(CURRENCIES);
 
-// Type exports
-export type { ChainConfig, CurrencyConfig };
+// Type exports for external use
+export type { ChainConfig as ChainConfigType, CurrencyConfig as CurrencyConfigType };

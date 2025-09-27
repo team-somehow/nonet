@@ -59,11 +59,8 @@ contract EIPThreeDoubleZeroNine is ERC20, Ownable {
             )
         );
 
-        // 3. Create Ethereum signed message hash
-        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-
-        // 4. Recover signer address and verify it matches the 'from' address
-        address recoveredSigner = ethSignedMessageHash.recover(signature);
+        // 3. Create Ethereum signed message hash and recover signer
+        address recoveredSigner = ECDSA.recover(ECDSA.toEthSignedMessageHash(messageHash), signature);
         require(recoveredSigner == from, "SimpleAuth: signature mismatch");
 
         // 5. Execute Transfer

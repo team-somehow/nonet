@@ -1,12 +1,11 @@
 import { ethers } from "ethers";
 
 // --- Configuration ---
-// Sepolia RPC endpoint. You can get one for free from services like Infura or Alchemy.
 const RPC_URL = "https://testnet.evm.nodes.onflow.org";
-const CONTRACT_ADDRESS = "0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01";
+const CONTRACT_ADDRESS = "0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01"; // Update with your deployed simple contract address
 
 // --- Contract ABI ---
-// A minimal ABI containing only the function we need to call.
+// ABI for the simplified transferWithAuthorization function
 const contractABI = [
   {
     inputs: [
@@ -26,7 +25,7 @@ const contractABI = [
 ];
 
 // --- Pre-signed Transaction Data ---
-// Fresh signature generated from transferWithAuthorization.ts
+// Replace this with the output from simpleTransferWithAuthorization.ts
 const signedTxData = {
   from: "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c",
   to: "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c",
@@ -37,15 +36,14 @@ const signedTxData = {
   signature:
     "0xc5b8bde480565fbe462642afede2f196db468c602c919ffb1521ff4273415892654aacddd94427b0c85bf1824013dfa41b0352cbaa20793f2f175b44e16a61b51b",
 };
-// Hellloooo pettiboy here
-// i know private key hardcode nahi karni chahiye par ispe kuch nahi hai
-// thank you for your consideration :)))
+
+// Relayer private key (pays for gas)
 const RELAYER_PRIVATE_KEY =
   "0xa5d69bd2a06efa55f9ca05b121cd0d617e48fdb83940727695812f3de7d70bc3";
 
 (async () => {
   try {
-    console.log("🚀 Starting transaction relayer script...");
+    console.log("🚀 Starting simple transaction relayer script...");
 
     // 1. Set up the provider and signer (the "relayer").
     const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -58,11 +56,11 @@ const RELAYER_PRIVATE_KEY =
 
     if (balance === 0n) {
       console.warn(
-        "⚠️ Warning: Relayer wallet has no ETH. The transaction will likely fail."
+        "⚠️ Warning: Relayer wallet has no tokens. The transaction will likely fail."
       );
     }
 
-    // 3. Create an instance of the contract.
+    // 2. Create an instance of the contract.
     const tokenContract = new ethers.Contract(
       CONTRACT_ADDRESS,
       contractABI,
@@ -82,7 +80,7 @@ const RELAYER_PRIVATE_KEY =
     console.log("signature:", signedTxData.signature);
     console.log("signature length:", signedTxData.signature.length);
 
-    // 4. Call the contract function with the signed data.
+    // 3. Call the contract function with the signed data.
     const tx = await tokenContract.transferWithAuthorization(
       signedTxData.from,
       signedTxData.to,
@@ -96,7 +94,7 @@ const RELAYER_PRIVATE_KEY =
     console.log(`⏳ Transaction sent! Waiting for confirmation...`);
     console.log(`Transaction Hash: ${tx.hash}`);
 
-    // 5. Wait for the transaction to be mined.
+    // 4. Wait for the transaction to be mined.
     const receipt = await tx.wait();
 
     console.log("\n✅ Transaction confirmed!");

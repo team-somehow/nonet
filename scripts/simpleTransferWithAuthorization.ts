@@ -52,6 +52,7 @@ const generateEthereumAddress = (publicKeyHex: string): string => {
     throw new Error("Failed to generate Ethereum address");
   }
 };
+
 // Generate a real ECDSA wallet with proper key pair and address derivation
 const generateRealWallet = (): {
   address: string;
@@ -95,7 +96,6 @@ const generateRealWallet = (): {
   // --- 1. Setup ---
 
   // For testing, let's use a known private key that has tokens
-  // In production, use the actual wallet that owns the tokens
   const KNOWN_PRIVATE_KEY =
     "0xa5d69bd2a06efa55f9ca05b121cd0d617e48fdb83940727695812f3de7d70bc3"; // Your test wallet
   const wallet = new ethers.Wallet(KNOWN_PRIVATE_KEY);
@@ -106,56 +106,55 @@ const generateRealWallet = (): {
   const TOKEN_CONTRACT_ADDRESS = "0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01"; // Flow EVM testnet contract
   const tokenContractAddress = TOKEN_CONTRACT_ADDRESS;
 
-  const toAddress = "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c"; // Recipient address (your relayer address)
+  const toAddress = "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c"; // Recipient address
   const chainId = 545; // flow on evm testnet
 
-  // --- 2. EIP-712 Domain ---
-  // This identifies the smart contract and chain you're interacting with.
-  // The 'name' and 'version' must match what's defined in your ERC20 contract.
-
-  // IMPORTANT: The 'name' must match exactly what was used when deploying the contract
-  // From contract query: name is "somehow"
-  const domain = {
-    name: "somehow", // This matches the deployed contract name
-    version: "1", // The EIP-712 version string from the contract
-    chainId: chainId,
-    verifyingContract: tokenContractAddress,
-  };
-  // --- 3. EIP-712 Types ---
-  // This defines the structure of the message you are signing.
-  // The names and types MUST exactly match the struct in the smart contract.
-  const types = {
-    TransferWithAuthorization: [
-      { name: "from", type: "address" },
-      { name: "to", type: "address" },
-      { name: "value", type: "uint256" },
-      { name: "validAfter", type: "uint256" },
-      { name: "validBefore", type: "uint256" },
-      { name: "nonce", type: "bytes32" },
-    ],
-  };
-
-  // --- 4. Message Value ---
-  // These are the actual parameters for the transfer.
+  // --- 2. Message Parameters ---
   const now = Math.floor(Date.now() / 1000);
   const transferValue = {
     from: fromAddress,
     to: toAddress,
-    value: ethers.parseUnits("1", 18), // Transfer 1 token (18 decimals as per contract)
-    validAfter: 0n, // Immediately valid (use BigInt for consistency)
-    validBefore: BigInt(now + 3600), // Valid for 1 hour (use BigInt for consistency)
+    value: ethers.parseUnits("1", 18), // Transfer 1 token (18 decimals)
+    validAfter: 0n, // Immediately valid
+    validBefore: BigInt(now + 3600), // Valid for 1 hour
     nonce: ethers.randomBytes(32), // A unique, random nonce to prevent replay attacks
   };
 
-  // --- 5. Sign the Message ---
-  // This is the core "offline" step. It uses the user's private key to sign the typed data.
-  const signature = await wallet.signTypedData(domain, types, transferValue);
+  // --- 3. Create Message Hash (Simple Keccak256) ---
+  // This mimics what the contract does: keccak256(abi.encodePacked(...))
+  const messageHash = ethers.solidityPackedKeccak256(
+    [
+      "address",
+      "address",
+      "uint256",
+      "uint256",
+      "uint256",
+      "bytes32",
+      "address",
+      "uint256",
+    ],
+    [
+      transferValue.from,
+      transferValue.to,
+      transferValue.value,
+      transferValue.validAfter,
+      transferValue.validBefore,
+      transferValue.nonce,
+      tokenContractAddress, // Contract address
+      chainId, // Chain ID
+    ]
+  );
 
-  // --- 6. Split signature into v, r, s components ---
+  console.log("Message Hash:", messageHash);
+
+  // --- 4. Sign the Message Hash ---
+  // The contract expects an Ethereum signed message, so we need to add the prefix
+  const signature = await wallet.signMessage(ethers.getBytes(messageHash));
+
+  // --- 5. Split signature into v, r, s components ---
   const splitSignature = ethers.Signature.from(signature);
 
-  // --- 7. Output ---
-  // These are the parameters someone else (a "relayer") will use to call the contract.
+  // --- 6. Output ---
   console.log("--- Transaction Parameters ---");
   console.log("from:        ", transferValue.from);
   console.log("to:          ", transferValue.to);
@@ -163,6 +162,7 @@ const generateRealWallet = (): {
   console.log("validAfter:  ", transferValue.validAfter.toString());
   console.log("validBefore: ", transferValue.validBefore.toString());
   console.log("nonce:       ", ethers.hexlify(transferValue.nonce));
+  console.log("messageHash: ", messageHash);
   console.log("signature:   ", signature);
   console.log("signature length:", signature.length);
 
@@ -171,7 +171,7 @@ const generateRealWallet = (): {
   console.log("r:", splitSignature.r);
   console.log("s:", splitSignature.s);
 
-  // --- 8. Final JSON Output ---
+  // --- 7. Final JSON Output ---
   console.log("\n--- JSON for submitTxnOnChain.ts script ---");
   console.log("\n```json");
   console.log(
@@ -191,24 +191,41 @@ const generateRealWallet = (): {
   );
   console.log("```");
 
-  console.log("\n--- Legacy format (v, r, s components) ---");
-  console.log("v:", splitSignature.v.toString());
-  console.log("r:", splitSignature.r);
-  console.log("s:", splitSignature.s);
-
-  // --- 9. Verification Step ---
+  // --- 8. Verification Step ---
   console.log("\n--- Signature Verification ---");
   try {
-    // Recreate the digest that the contract will create
-    const recreatedDigest = ethers.TypedDataEncoder.hash(
-      domain,
-      types,
-      transferValue
+    // Recreate the message hash
+    const recreatedMessageHash = ethers.solidityPackedKeccak256(
+      [
+        "address",
+        "address",
+        "uint256",
+        "uint256",
+        "uint256",
+        "bytes32",
+        "address",
+        "uint256",
+      ],
+      [
+        transferValue.from,
+        transferValue.to,
+        transferValue.value,
+        transferValue.validAfter,
+        transferValue.validBefore,
+        transferValue.nonce,
+        tokenContractAddress,
+        chainId,
+      ]
     );
-    console.log("Recreated digest:", recreatedDigest);
+
+    console.log("Recreated message hash:", recreatedMessageHash);
+    console.log("Hashes match:", messageHash === recreatedMessageHash);
 
     // Recover the signer from our signature
-    const recoveredSigner = ethers.recoverAddress(recreatedDigest, signature);
+    const recoveredSigner = ethers.verifyMessage(
+      ethers.getBytes(messageHash),
+      signature
+    );
     console.log("Recovered signer:", recoveredSigner);
     console.log("Expected signer:", fromAddress);
     console.log(

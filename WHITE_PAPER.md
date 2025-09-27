@@ -1,22 +1,21 @@
 A BLE transmitter that transmits data (json as binary) from peer to peer util it reaches a peer that has internet…
 
 I transmit packets using BLE GAP
-Broadcast 
+Broadcast
 Recieve
 
 2 threads are constantly running and updating data in the masterstate
 
-Lets Walkthrough an example 
+Lets Walkthrough an example
 
 The JSON that needs to be transmitted
 
 {
-	“from”: “0xasdhklhadfjlhsafd”,
-	“to”: “0xfdsafdsfd”,
-	“data”: “dfadfasdfasdf”,
-	“value”: “ddsfadhfljashkdfaldkjasdkfjhaksdj”,
+“from”: “0xasdhklhadfjlhsafd”,
+“to”: “0xfdsafdsfd”,
+“data”: “dfadfasdfasdf”,
+“value”: “ddsfadhfljashkdfaldkjasdkfjhaksdj”,
 }
-
 
 This is converted to BinaryPaylod
 
@@ -27,6 +26,7 @@ Lets say the payload is 70 bytes
 The limit for BLE broadcast on GAP is 31 bytes
 
 1 packet looks like
+
 ```
 Version		1 byte
 Id:		 	2 bytes
@@ -37,14 +37,11 @@ Data			remaining
 ```
 
 I broadcast this with (NO_NET_SERVICE_ID, [packet])
-This broadcast 
+This broadcast
 
 —------
 
 There are 2 threads constantly running that update the master state
-
-
-
 
 ```json
 {
@@ -74,4 +71,26 @@ Because if is complete is true that means that it has the entire packet and can 
 —
 
 The Receiver thread keeps listening to all packets
-If p.id found it 
+If p.id found in master state
+Checks if is_ack with incoming packet’s is_ack
+If conflict: obey the is_ack true one
+If is_complete then
+If does not have internet
+ignores the rest of the packet
+If has internet
+Makes the request waits for response
+Then
+Update the data, no_of_chunks based on response
+Marks is_ack as true for the broadcast thread to pick up
+Otherwise fills the packet at the correct place in the data map
+If p.id not found in master state
+Create entry for pid with
+Is_complete false
+Is_ack based on the packet
+No. of chunks based on packet
+Data map entry based on data and index
+—-
+
+Now each node is pooling the network with what is knows
+Until the packet reaches a node with internet after which it starts broadcasting with is_ack: true
+with the new data and nodes prefer that unless it reaches the source which is waiting for it

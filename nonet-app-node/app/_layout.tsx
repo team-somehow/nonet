@@ -92,6 +92,15 @@ export default function RootLayout() {
               headerTintColor: Colors.light.text,
             }} 
           />
+          <Stack.Screen 
+            name="simple-transaction" 
+            options={{ 
+              title: 'Simple Transaction',
+              headerShown: true,
+              headerStyle: { backgroundColor: Colors.light.background },
+              headerTintColor: Colors.light.text,
+            }} 
+          />
         </Stack>
         <StatusBar style="dark" />
       </ThemeProvider>

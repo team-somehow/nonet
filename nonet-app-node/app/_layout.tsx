@@ -52,7 +52,7 @@ export default function RootLayout() {
       const originalConsoleError = console.error;
       console.error = (...args: any[]) => {
         // Log errors but don't crash the app
-        originalConsoleError.apply(console, args);
+        // originalConsoleError.apply(console, args);
       };
 
       return () => {

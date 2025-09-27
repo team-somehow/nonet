@@ -31,43 +31,41 @@ contract EIPThreeDoubleZeroNine is ERC20, Ownable {
      * @notice Executes a transfer using an off-chain signed authorization with simple keccak256 hashing.
      * @dev The 'from' address signs the message; the transaction sender (msg.sender) is the gas payer.
      */
-    function transferWithAuthorization(
-        address from,
-        address to,
-        uint256 value,
-        uint256 validAfter,
-        uint256 validBefore,
-        bytes32 nonce,
-        bytes calldata signature
-    ) public {
-        // 1. Validate Time and Nonce
-        require(validAfter <= block.timestamp, "SimpleAuth: valid after");
-        require(validBefore >= block.timestamp, "SimpleAuth: valid before");
-        require(_authorizationUsed.add(nonce), "SimpleAuth: nonce used");
-        
-        // 2. Create message hash using simple keccak256 of abi.encodePacked
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                from,
-                to,
-                value,
-                validAfter,
-                validBefore,
-                nonce,
-                address(this), // Include contract address to prevent cross-contract replay
-                block.chainid  // Include chain ID to prevent cross-chain replay
-            )
-        );
+function transferWithAuthorization(
+    address from,
+    address to,
+    uint256 value,
+    uint256 validAfter,
+    uint256 validBefore,
+    bytes32 nonce,
+    bytes calldata signature
+) public {
+    require(validAfter <= block.timestamp, "SimpleAuth: valid after");
+    require(validBefore >= block.timestamp, "SimpleAuth: valid before");
+    require(_authorizationUsed.add(nonce), "SimpleAuth: nonce used");
 
-        // 3. Create Ethereum signed message hash and recover signer
-        address recoveredSigner = ECDSA.recover(ECDSA.toEthSignedMessageHash(messageHash), signature);
-        require(recoveredSigner == from, "SimpleAuth: signature mismatch");
+    bytes32 messageHash = keccak256(
+        abi.encodePacked(
+            from,
+            to,
+            value,
+            validAfter,
+            validBefore,
+            nonce,
+            address(this),
+            block.chainid
+        )
+    );
 
-        // 5. Execute Transfer
-        _transfer(from, to, value);
-        
-        emit AuthorizationUsed(from, nonce);
-    }
+    address recoveredSigner = ECDSA.recover(
+        keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)),
+        signature
+    );
+    require(recoveredSigner == from, "SimpleAuth: signature mismatch");
+
+    _transfer(from, to, value);
+    emit AuthorizationUsed(from, nonce);
+}
 
     /**
      * @notice Creates 'amount' tokens and assigns them to 'to'.

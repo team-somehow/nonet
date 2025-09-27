@@ -15,6 +15,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useWallet } from '@/contexts/WalletContext';
 import { CURRENCIES, CHAINS, DEFAULT_CURRENCY, DEFAULT_CHAIN, Currency, Chain } from '@/constants/assets';
+import { TransactionLoader } from '@/components/TransactionLoader';
 
 export default function TransactionPage(): React.JSX.Element {
   const { toAddress } = useLocalSearchParams<{ toAddress: string }>();
@@ -29,9 +30,7 @@ export default function TransactionPage(): React.JSX.Element {
   // Modal states
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showChainModal, setShowChainModal] = useState(false);
-  
-  // Transaction loading state
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTransactionLoader, setShowTransactionLoader] = useState(false);
 
   const handleSubmitTransaction = async () => {
     if (!isLoggedIn || !userWalletAddress) {
@@ -49,22 +48,27 @@ export default function TransactionPage(): React.JSX.Element {
       return;
     }
 
-    setIsSubmitting(true);
+    // Show the transaction loader with mesh network flow
+    setShowTransactionLoader(true);
+  };
 
-    // Simulate transaction processing
-    setTimeout(() => {
-      setIsSubmitting(false);
-      Alert.alert(
-        'Transaction Submitted',
-        `Successfully sent ${amount} ${selectedCurrency.symbol} to ${toAddress.slice(0, 6)}...${toAddress.slice(-4)} on ${selectedChain.name}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
-      );
-    }, 2000);
+  const handleTransactionComplete = () => {
+    setShowTransactionLoader(false);
+    Alert.alert(
+      'Transaction Successful! 🎉',
+      `Successfully sent ${amount} ${selectedCurrency.symbol} to ${toAddress?.slice(0, 6)}...${toAddress?.slice(-4)} on ${selectedChain.name} network via mesh routing.`,
+      [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ]
+    );
+  };
+
+  const handleTransactionCancel = () => {
+    setShowTransactionLoader(false);
+    Alert.alert('Transaction Cancelled', 'Your transaction has been cancelled.');
   };
 
   const renderCurrencyItem = ({ item }: { item: Currency }) => (
@@ -104,6 +108,22 @@ export default function TransactionPage(): React.JSX.Element {
       )}
     </TouchableOpacity>
   );
+
+  // Show loader if transaction is being processed
+  if (showTransactionLoader) {
+    return (
+      <TransactionLoader
+        onComplete={handleTransactionComplete}
+        onCancel={handleTransactionCancel}
+        transactionData={{
+          amount,
+          currency: selectedCurrency.symbol,
+          toAddress: toAddress || '',
+          chain: selectedChain.name,
+        }}
+      />
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -198,13 +218,13 @@ export default function TransactionPage(): React.JSX.Element {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            (!isLoggedIn || !amount || isSubmitting) && styles.submitButtonDisabled,
+            (!isLoggedIn || !amount || showTransactionLoader) && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmitTransaction}
-          disabled={!isLoggedIn || !amount || isSubmitting}
+          disabled={!isLoggedIn || !amount || showTransactionLoader}
         >
           <Text style={styles.submitButtonText}>
-            {isSubmitting ? 'Processing...' : 'Send Transaction'}
+            {showTransactionLoader ? 'Processing...' : 'Send Transaction'}
           </Text>
         </TouchableOpacity>
 

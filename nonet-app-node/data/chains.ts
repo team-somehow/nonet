@@ -15,7 +15,7 @@ export interface ChainConfig {
     symbol: string;
     decimals: number;
   };
-  imageUrl: string;
+  imageUrl: any;
   testnet: boolean;
   type: 'evm' | 'flow' | 'hedera' | 'other';
   gasSettings?: {
@@ -33,7 +33,7 @@ export interface CurrencyConfig {
   name: string;
   symbol: string;
   decimals: number;
-  imageUrl: string;
+  imageUrl: any;
   chains: string[]; // Chain IDs where this currency is available
   contractAddress?: string; // For ERC-20 tokens
   isNative: boolean;
@@ -55,7 +55,7 @@ export const CHAINS: Record<string, ChainConfig> = {
       symbol: 'FLOW',
       decimals: 18,
     },
-    imageUrl: 'https://cryptologos.cc/logos/flow-flow-logo.png',
+    imageUrl: require('../assets/images/chains_currencies/flow-flow-logo.png'),
     testnet: true,
     type: 'evm',
     gasSettings: {
@@ -78,7 +78,7 @@ export const CHAINS: Record<string, ChainConfig> = {
       symbol: 'HBAR',
       decimals: 18,
     },
-    imageUrl: 'https://cryptologos.cc/logos/hedera-hbar-logo.png',
+    imageUrl: require('../assets/images/chains_currencies/hedera-hbar-logo.png'),
     testnet: true,
     type: 'evm',
     gasSettings: {
@@ -96,7 +96,7 @@ export const CURRENCIES: Record<string, CurrencyConfig> = {
     name: 'Flow',
     symbol: 'FLOW',
     decimals: 18,
-    imageUrl: 'https://cryptologos.cc/logos/flow-flow-logo.png',
+    imageUrl: require('../assets/images/chains_currencies/flow-flow-logo.png'),
     chains: ['flow'],
     isNative: true,
   },
@@ -106,7 +106,7 @@ export const CURRENCIES: Record<string, CurrencyConfig> = {
     name: 'Ethereum',
     symbol: 'ETH',
     decimals: 18,
-    imageUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+    imageUrl: require('../assets/images/chains_currencies/ethereum-eth-logo.png'),
     chains: ['sepolia'],
     isNative: true,
   },
@@ -116,7 +116,7 @@ export const CURRENCIES: Record<string, CurrencyConfig> = {
     name: 'HBAR',
     symbol: 'HBAR',
     decimals: 18,
-    imageUrl: 'https://cryptologos.cc/logos/hedera-hbar-logo.png',
+    imageUrl: require('../assets/images/chains_currencies/hedera-hbar-logo.png'),
     chains: ['hedera'],
     isNative: true,
   },
@@ -126,42 +126,31 @@ export const CURRENCIES: Record<string, CurrencyConfig> = {
     name: 'MATIC',
     symbol: 'MATIC',
     decimals: 18,
-    imageUrl: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+    imageUrl: require('../assets/images/chains_currencies/polygon-matic-logo.png'),
     chains: ['polygonMumbai'],
     isNative: true,
   },
-
-  bnb: {
-    id: 'bnb',
-    name: 'BNB',
-    symbol: 'BNB',
-    decimals: 18,
-    imageUrl: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-    chains: ['bscTestnet'],
-    isNative: true,
-  },
-
   usdc: {
     id: 'usdc',
     name: 'USD Coin',
     symbol: 'USDC',
     decimals: 6,
-    imageUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+    imageUrl: require('../assets/images/chains_currencies/usd-coin-usdc-logo.png'),
     chains: ['sepolia', 'polygonMumbai', 'bscTestnet'],
     isNative: false,
     contractAddress: '0x07865c6E87B9F70255377e024ace6630C1Eaa37F', // Sepolia USDC
   },
 
-  usdt: {
-    id: 'usdt',
-    name: 'Tether USD',
-    symbol: 'USDT',
-    decimals: 6,
-    imageUrl: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-    chains: ['sepolia', 'polygonMumbai', 'bscTestnet'],
-    isNative: false,
-    contractAddress: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', // Sepolia USDT
-  },
+//   usdt: {
+//     id: 'usdt',
+//     name: 'Tether USD',
+//     symbol: 'USDT',
+//     decimals: 6,
+//     imageUrl: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+//     chains: ['sepolia', 'polygonMumbai', 'bscTestnet'],
+//     isNative: false,
+//     contractAddress: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', // Sepolia USDT
+//   },
 };
 
 // Default selections

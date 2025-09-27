@@ -103,7 +103,11 @@ export default function TransactionPage(): React.JSX.Element {
     <List.Item
       title={item.name}
       description={item.symbol}
-      left={() => <Avatar.Image size={40} source={{ uri: item.imageUrl }} />}
+      left={() => (
+        <View style={styles.imageContainer}>
+          <Image source={item.imageUrl} style={styles.chainImage} />
+        </View>
+      )}
       right={() => selectedCurrency.id === item.id ? <List.Icon icon="check" /> : null}
       onPress={() => {
         setSelectedCurrency(item);
@@ -116,7 +120,11 @@ export default function TransactionPage(): React.JSX.Element {
     <List.Item
       title={item.name}
       description={item.symbol}
-      left={() => <Avatar.Image size={40} source={{ uri: item.imageUrl }} />}
+      left={() => (
+        <View style={styles.imageContainer}>
+          <Image source={item.imageUrl} style={styles.chainImage} />
+        </View>
+      )}
       right={() => selectedChain.id === item.id ? <List.Icon icon="check" /> : null}
       onPress={() => {
         setSelectedChain(item);
@@ -182,7 +190,11 @@ export default function TransactionPage(): React.JSX.Element {
             <List.Item
               title={selectedChain.name}
               description={selectedChain.symbol}
-              left={() => <Avatar.Image size={40} source={{ uri: selectedChain.imageUrl }} />}
+              left={() => (
+                <View style={styles.imageContainer}>
+                  <Image source={selectedChain.imageUrl} style={styles.chainImage} />
+                </View>
+              )}
               right={() => <List.Icon icon="chevron-down" />}
               onPress={() => setShowChainModal(true)}
               style={styles.selectorItem}
@@ -197,7 +209,11 @@ export default function TransactionPage(): React.JSX.Element {
             <List.Item
               title={selectedCurrency.name}
               description={selectedCurrency.symbol}
-              left={() => <Avatar.Image size={40} source={{ uri: selectedCurrency.imageUrl }} />}
+              left={() => (
+                <View style={styles.imageContainer}>
+                  <Image source={selectedCurrency.imageUrl} style={styles.chainImage} />
+                </View>
+              )}
               right={() => <List.Icon icon="chevron-down" />}
               onPress={() => setShowCurrencyModal(true)}
               style={styles.selectorItem}
@@ -379,5 +395,21 @@ const styles = StyleSheet.create({
   },
   modalList: {
     maxHeight: 400,
+  },
+  imageContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  chainImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
 });

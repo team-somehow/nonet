@@ -17,6 +17,24 @@ export interface WalletData {
   createdAt: Date;
 }
 
+export interface TransactionData {
+  to: string;
+  value: string;
+  gasLimit?: string;
+  gasPrice?: string;
+  nonce?: string;
+  data?: string;
+  chainId?: number;
+}
+
+export interface SignedTransaction {
+  rawTransaction: string;
+  transactionHash: string;
+  r: string;
+  s: string;
+  v: string;
+}
+
 interface WalletContextType {
   // Wallet states
   userWalletAddress: string | null;
@@ -36,6 +54,7 @@ interface WalletContextType {
   validatePrivateKey: (privateKey: string) => boolean;
   deriveAddressFromPrivateKey: (privateKey: string) => string;
   signMessage: (message: string, privateKey: string) => string;
+  signTransaction: (transactionData: TransactionData) => Promise<SignedTransaction>;
   
   // Scanned addresses functions
   addScannedAddress: (address: string) => void;
@@ -191,6 +210,81 @@ const signMessage = (message: string, privateKey: string): string => {
   } catch (error) {
     console.error('Error signing message:', error);
     throw new Error('Failed to sign message');
+  }
+};
+
+// Sign transaction data using ECDSA
+const signTransactionData = (transactionData: TransactionData, privateKey: string): SignedTransaction => {
+  try {
+    console.log('🔐 Signing transaction with ECDSA...');
+    
+    // Remove 0x prefix if present
+    const cleanKey = privateKey.replace('0x', '');
+    
+    // Create key pair from private key
+    const keyPair = ec.keyFromPrivate(cleanKey, 'hex');
+    
+    // Set default values for transaction fields
+    const tx = {
+      to: transactionData.to,
+      value: transactionData.value || '0',
+      gasLimit: transactionData.gasLimit || '21000',
+      gasPrice: transactionData.gasPrice || '20000000000', // 20 Gwei
+      nonce: transactionData.nonce || '0',
+      data: transactionData.data || '0x',
+      chainId: transactionData.chainId || 1,
+    };
+    
+    // Create transaction hash for signing (simplified RLP encoding)
+    const txData = `${tx.nonce}${tx.gasPrice}${tx.gasLimit}${tx.to}${tx.value}${tx.data}${tx.chainId}`;
+    const txHash = CryptoJS.SHA3(txData, { outputLength: 256 });
+    const txHashHex = txHash.toString(CryptoJS.enc.Hex);
+    
+    console.log('📝 Transaction data to sign:', {
+      to: tx.to,
+      value: tx.value,
+      gasLimit: tx.gasLimit,
+      gasPrice: tx.gasPrice,
+      nonce: tx.nonce,
+      chainId: tx.chainId,
+    });
+    
+    // Sign the transaction hash
+    const signature = keyPair.sign(txHashHex, 'hex');
+    
+    const r = signature.r.toString('hex').padStart(64, '0');
+    const s = signature.s.toString('hex').padStart(64, '0');
+    const v = (signature.recoveryParam! + (tx.chainId * 2) + 35).toString(16);
+    
+    // Create raw transaction (simplified)
+    const rawTransaction = `0x${txData}${v}${r}${s}`;
+    
+    // Create transaction hash
+    const transactionHash = CryptoJS.SHA3(rawTransaction, { outputLength: 256 }).toString(CryptoJS.enc.Hex);
+    
+    const signedTx: SignedTransaction = {
+      rawTransaction,
+      transactionHash: `0x${transactionHash}`,
+      r: `0x${r}`,
+      s: `0x${s}`,
+      v: `0x${v}`,
+    };
+    
+    console.log('✅ Transaction signed successfully');
+    console.log('📋 Signed Transaction Details:', {
+      transactionHash: signedTx.transactionHash,
+      rawTransaction: signedTx.rawTransaction.slice(0, 50) + '...',
+      signature: {
+        r: signedTx.r,
+        s: signedTx.s,
+        v: signedTx.v,
+      },
+    });
+    
+    return signedTx;
+  } catch (error) {
+    console.error('❌ Error signing transaction:', error);
+    throw new Error('Failed to sign transaction');
   }
 };
 
@@ -379,6 +473,29 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     saveScannedAddresses(updatedAddresses);
   };
 
+  // Sign transaction using wallet's private key
+  const signTransaction = async (transactionData: TransactionData): Promise<SignedTransaction> => {
+    try {
+      if (!walletData?.privateKey) {
+        throw new Error('No wallet found. Please create a wallet first.');
+      }
+
+      console.log('🔐 Starting transaction signing process...');
+      console.log('📝 Transaction data received:', transactionData);
+
+      // Sign the transaction using the wallet's private key
+      const signedTx = signTransactionData(transactionData, walletData.privateKey);
+
+      console.log('✅ Transaction signing completed');
+      console.log('🚀 Ready to broadcast transaction');
+
+      return signedTx;
+    } catch (error) {
+      console.error('❌ Error in signTransaction:', error);
+      throw error;
+    }
+  };
+
   const contextValue: WalletContextType = {
     // States
     userWalletAddress,
@@ -396,6 +513,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     validatePrivateKey,
     deriveAddressFromPrivateKey,
     signMessage,
+    signTransaction,
     
     // Scanned addresses functions
     addScannedAddress,

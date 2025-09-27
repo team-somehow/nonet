@@ -1,0 +1,77 @@
+A BLE transmitter that transmits data (json as binary) from peer to peer util it reaches a peer that has internet…
+
+I transmit packets using BLE GAP
+Broadcast 
+Recieve
+
+2 threads are constantly running and updating data in the masterstate
+
+Lets Walkthrough an example 
+
+The JSON that needs to be transmitted
+
+{
+	“from”: “0xasdhklhadfjlhsafd”,
+	“to”: “0xfdsafdsfd”,
+	“data”: “dfadfasdfasdf”,
+	“value”: “ddsfadhfljashkdfaldkjasdkfjhaksdj”,
+}
+
+
+This is converted to BinaryPaylod
+
+Payload = [101010010100010………101010101001000010100101001]
+
+Lets say the payload is 70 bytes
+
+The limit for BLE broadcast on GAP is 31 bytes
+
+1 packet looks like
+```
+Version		1 byte
+Id:		 	2 bytes
+Index: 			2 bytes
+Number of chunks	2 bytes
+IsItAnACK		1 byte
+Data			remaining
+```
+
+I broadcast this with (NO_NET_SERVICE_ID, [packet])
+This broadcast 
+
+—------
+
+There are 2 threads constantly running that update the master state
+
+
+
+
+```json
+{
+    "packet.id": {
+        "ack_mode": false,      // as soon as the first ack is received this is toggled to `true`, is_complete is toggled back to `false`, `number_of_chunks` are reset, and `data` is reset
+        "is_complete": false,   // this kept to check if all data packets are recieved
+        "number_of_chunks": 10  // total number of possible chunks
+        "data": {
+            1: "101010010100001001",
+            2: "101010010100001001",
+            3: "101010010100001001",
+            ....
+            9: "101010010100001001",
+            10: "101010010100001001",
+        }
+    },
+    ……
+}
+```
+
+—-
+
+The Broadcast thread is constantly looping over each packet.id and broadcasting it if
+Is_complete is true
+Because if is complete is true that means that it has the entire packet and can broadcast it
+
+—
+
+The Receiver thread keeps listening to all packets
+If p.id found it 

@@ -23,20 +23,28 @@ import {
 } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
-import { CURRENCIES, CHAINS, DEFAULT_CURRENCY, DEFAULT_CHAIN, Currency, Chain } from '@/constants/assets';
+import {
+  CURRENCIES,
+  CHAINS,
+  DEFAULT_CURRENCY,
+  DEFAULT_CHAIN,
+  Currency,
+  Chain,
+} from '@/constants/assets';
 import { TransactionLoader } from '@/components/TransactionLoader';
 
 export default function TransactionPage(): React.JSX.Element {
   const { toAddress } = useLocalSearchParams<{ toAddress: string }>();
   const { userWalletAddress, isLoggedIn } = useWallet();
   const theme = useTheme();
-  
+
   // Transaction state
   const [amount, setAmount] = useState<string>('');
-  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<Currency>(DEFAULT_CURRENCY);
   const [selectedChain, setSelectedChain] = useState<Chain>(DEFAULT_CHAIN);
   const [memo, setMemo] = useState<string>('');
-  
+
   // Modal states
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showChainModal, setShowChainModal] = useState(false);
@@ -72,13 +80,32 @@ export default function TransactionPage(): React.JSX.Element {
     return hash;
   };
 
-  const handleTransactionComplete = () => {
+  const handleTransactionComplete = (fullMessage?: string) => {
     setShowTransactionLoader(false);
-    
-    // Generate offline transaction hash and timestamp
-    const txHash = generateOfflineTransactionHash();
+
+    // Use the response message as transaction hash if available, otherwise generate one
+    let txHash: string;
+    if (fullMessage) {
+      // If we received a response, try to extract transaction hash from it
+      try {
+        const response = JSON.parse(fullMessage);
+        txHash =
+          response.transactionHash ||
+          response.hash ||
+          generateOfflineTransactionHash();
+      } catch {
+        // If parsing fails, use the full message as hash or generate one
+        txHash =
+          fullMessage.length > 10
+            ? fullMessage
+            : generateOfflineTransactionHash();
+      }
+    } else {
+      txHash = generateOfflineTransactionHash();
+    }
+
     const timestamp = Date.now().toString();
-    
+
     // Navigate to success page with transaction details
     router.replace({
       pathname: '/transaction-success',
@@ -90,13 +117,17 @@ export default function TransactionPage(): React.JSX.Element {
         chain: selectedChain.name,
         txHash,
         timestamp,
+        fullMessage: fullMessage || '', // Pass the full response message
       },
     });
   };
 
   const handleTransactionCancel = () => {
     setShowTransactionLoader(false);
-    Alert.alert('Transaction Cancelled', 'Your transaction has been cancelled.');
+    Alert.alert(
+      'Transaction Cancelled',
+      'Your transaction has been cancelled.'
+    );
   };
 
   const renderCurrencyItem = ({ item }: { item: Currency }) => (
@@ -108,7 +139,9 @@ export default function TransactionPage(): React.JSX.Element {
           <Image source={item.imageUrl} style={styles.chainImage} />
         </View>
       )}
-      right={() => selectedCurrency.id === item.id ? <List.Icon icon="check" /> : null}
+      right={() =>
+        selectedCurrency.id === item.id ? <List.Icon icon="check" /> : null
+      }
       onPress={() => {
         setSelectedCurrency(item);
         setShowCurrencyModal(false);
@@ -128,7 +161,9 @@ export default function TransactionPage(): React.JSX.Element {
           <Image source={item.imageUrl} style={styles.chainImage} />
         </View>
       )}
-      right={() => selectedChain.id === item.id ? <List.Icon icon="check" /> : null}
+      right={() =>
+        selectedChain.id === item.id ? <List.Icon icon="check" /> : null
+      }
       onPress={() => {
         setSelectedChain(item);
         setShowChainModal(false);
@@ -157,22 +192,31 @@ export default function TransactionPage(): React.JSX.Element {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <View style={styles.content}>
-        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
+        <Text
+          variant="headlineMedium"
+          style={[styles.title, { color: theme.colors.onBackground }]}
+        >
           Send Transaction
         </Text>
 
         {/* From Address */}
         <Card style={styles.card}>
           <Card.Content>
-            <Text variant="labelLarge" style={styles.label}>From (Your Wallet)</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              From (Your Wallet)
+            </Text>
             <Surface style={styles.addressSurface} elevation={1}>
               <Text variant="bodyMedium" style={styles.addressText}>
-                {userWalletAddress ? 
-                  `${userWalletAddress.slice(0, 6)}...${userWalletAddress.slice(-4)}` : 
-                  'No wallet connected'
-                }
+                {userWalletAddress
+                  ? `${userWalletAddress.slice(
+                      0,
+                      6
+                    )}...${userWalletAddress.slice(-4)}`
+                  : 'No wallet connected'}
               </Text>
             </Surface>
           </Card.Content>
@@ -181,10 +225,14 @@ export default function TransactionPage(): React.JSX.Element {
         {/* To Address */}
         <Card style={styles.card}>
           <Card.Content>
-            <Text variant="labelLarge" style={styles.label}>To (Recipient)</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              To (Recipient)
+            </Text>
             <Surface style={styles.addressSurface} elevation={1}>
               <Text variant="bodyMedium" style={styles.addressText}>
-                {toAddress ? `${toAddress.slice(0, 6)}...${toAddress.slice(-4)}` : 'No address'}
+                {toAddress
+                  ? `${toAddress.slice(0, 6)}...${toAddress.slice(-4)}`
+                  : 'No address'}
               </Text>
             </Surface>
           </Card.Content>
@@ -193,13 +241,18 @@ export default function TransactionPage(): React.JSX.Element {
         {/* Chain Selection */}
         <Card style={styles.card}>
           <Card.Content>
-            <Text variant="labelLarge" style={styles.label}>Network</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              Network
+            </Text>
             <List.Item
               title={selectedChain.name}
               description={selectedChain.symbol}
               left={() => (
                 <View style={styles.imageContainer}>
-                  <Image source={selectedChain.imageUrl} style={styles.chainImage} />
+                  <Image
+                    source={selectedChain.imageUrl}
+                    style={styles.chainImage}
+                  />
                 </View>
               )}
               right={() => <List.Icon icon="chevron-down" />}
@@ -212,13 +265,18 @@ export default function TransactionPage(): React.JSX.Element {
         {/* Currency Selection */}
         <Card style={styles.card}>
           <Card.Content>
-            <Text variant="labelLarge" style={styles.label}>Currency</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              Currency
+            </Text>
             <List.Item
               title={selectedCurrency.name}
               description={selectedCurrency.symbol}
               left={() => (
                 <View style={styles.imageContainer}>
-                  <Image source={selectedCurrency.imageUrl} style={styles.chainImage} />
+                  <Image
+                    source={selectedCurrency.imageUrl}
+                    style={styles.chainImage}
+                  />
                 </View>
               )}
               right={() => <List.Icon icon="chevron-down" />}
@@ -231,7 +289,9 @@ export default function TransactionPage(): React.JSX.Element {
         {/* Amount Input */}
         <Card style={styles.card}>
           <Card.Content>
-            <Text variant="labelLarge" style={styles.label}>Amount</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              Amount
+            </Text>
             <View style={styles.amountContainer}>
               <TextInput
                 style={styles.amountInput}
@@ -249,7 +309,9 @@ export default function TransactionPage(): React.JSX.Element {
         {/* Memo (Optional) */}
         <Card style={styles.card}>
           <Card.Content>
-            <Text variant="labelLarge" style={styles.label}>Memo (Optional)</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              Memo (Optional)
+            </Text>
             <TextInput
               style={styles.memoInput}
               value={memo}

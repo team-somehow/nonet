@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Animated,
-  Dimensions,
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
 } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useWallet, TransactionData } from '@/contexts/WalletContext';
+import { useBle } from '@/contexts/BleContext';
 
 // Transaction Flow Steps - Easily editable constants
 const TRANSACTION_STEPS = [
@@ -59,15 +59,16 @@ const TRANSACTION_STEPS = [
 ];
 
 const LOADING_MESSAGES = [
-  'Establishing secure connection...',
-  'Routing through mesh network...',
-  'Connecting to gateway node...',
-  'Validating transaction...',
-  'Broadcasting to blockchain...',
+  'Preparing and signing transaction...',
+  'Scanning for nearby mesh nodes...',
+  'Routing through offline network...',
+  'Finding internet gateway...',
+  'Broadcasting to blockchain network...',
+  'Transaction confirmed on blockchain!',
 ];
 
 interface TransactionLoaderProps {
-  onComplete: () => void;
+  onComplete: (fullMessage?: string) => void;
   onCancel?: () => void;
   transactionData?: {
     amount: string;
@@ -84,9 +85,18 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
   transactionData,
 }) => {
   const { signTransaction, userWalletAddress } = useWallet();
+  const { broadcastMessage, masterState } = useBle();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [broadcastId, setBroadcastId] = useState<number | null>(null);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [shouldPauseFlow, setShouldPauseFlow] = useState(false);
+  const [isWaitingForConfirmation, setIsWaitingForConfirmation] =
+    useState(false);
+  const [nextStepTimeouts, setNextStepTimeouts] = useState<
+    ReturnType<typeof setTimeout>[]
+  >([]);
 
   // Animation values
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -96,17 +106,139 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // Resume the transaction flow to the final step - ONLY when properly confirmed
+  const resumeTransactionFlow = useCallback(() => {
+    // STRICT: only resume if we have proper confirmation through BLE mesh network
+    if (!broadcastId) {
+      console.log(
+        '⚠️ Cannot resume transaction flow: no broadcast ID - waiting for confirmation'
+      );
+      return;
+    }
+
+    const state = masterState.get(broadcastId);
+    if (!state || !state.isComplete || !state.isAck) {
+      console.log(
+        '⚠️ Cannot resume transaction flow: invalid state - still waiting for confirmation',
+        state
+      );
+      return;
+    }
+
+    console.log(
+      '✅ Resuming transaction flow with CONFIRMED state from mesh network'
+    );
+
+    // Continue from gateway step through broadcasting to completion
+    const resumeFromStep = 4; // Broadcasting Transaction step
+    const finalStepIndex = TRANSACTION_STEPS.length - 1;
+
+    // Animate through the remaining steps quickly
+    let stepDelay = 0;
+    for (let i = resumeFromStep; i <= finalStepIndex; i++) {
+      setTimeout(() => {
+        setCurrentStep(i);
+
+        // Animate step activation
+        Animated.timing(stepAnimations[i], {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+
+        // Update progress bar
+        Animated.timing(progressAnim, {
+          toValue: (i + 1) / TRANSACTION_STEPS.length,
+          duration: 500,
+          useNativeDriver: false,
+        }).start();
+
+        setLoadingMessageIndex(Math.min(i, LOADING_MESSAGES.length - 1));
+
+        // Complete the transaction at the final step
+        if (i === finalStepIndex) {
+          setTimeout(() => {
+            setIsCompleted(true);
+            setTimeout(() => {
+              onComplete(state.fullMessage);
+            }, 1500);
+          }, 800);
+        }
+      }, stepDelay);
+
+      stepDelay += 800; // 800ms between each step
+    }
+  }, [broadcastId, masterState, onComplete, stepAnimations, progressAnim]);
+
   useEffect(() => {
     resetAnimation();
     startTransactionFlow();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Monitor master state for transaction completion
+  useEffect(() => {
+    if (broadcastId && masterState.has(broadcastId)) {
+      const state = masterState.get(broadcastId);
+      if (state && state.isComplete && state.isAck) {
+        // Transaction is complete and acknowledged - stop broadcasting
+        setIsBroadcasting(false);
+        setShouldPauseFlow(false);
+        setIsWaitingForConfirmation(false);
+
+        // Resume the flow to the final step
+        resumeTransactionFlow();
+      }
+    }
+  }, [masterState, broadcastId, resumeTransactionFlow]);
+
+  // STRICT Safety check: prevent completion if still waiting for confirmation
+  useEffect(() => {
+    // ALWAYS prevent completion if we're waiting for confirmation OR if we haven't received proper mesh confirmation
+    if ((isWaitingForConfirmation || currentStep >= 3) && isCompleted) {
+      // Only allow completion if we have a confirmed broadcast state
+      if (!broadcastId || !masterState.has(broadcastId)) {
+        console.log(
+          '⚠️ STRICT Safety check: Preventing completion - no confirmed mesh state'
+        );
+        setIsCompleted(false);
+        return;
+      }
+
+      const state = masterState.get(broadcastId);
+      if (!state || !state.isComplete || !state.isAck) {
+        console.log(
+          '⚠️ STRICT Safety check: Preventing completion - mesh confirmation not received'
+        );
+        setIsCompleted(false);
+      }
+    }
+  }, [
+    isWaitingForConfirmation,
+    isCompleted,
+    currentStep,
+    broadcastId,
+    masterState,
+  ]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      nextStepTimeouts.forEach((timeout) => clearTimeout(timeout));
+    };
+  }, [nextStepTimeouts]);
 
   const resetAnimation = () => {
     setCurrentStep(0);
     setIsCompleted(false);
     setLoadingMessageIndex(0);
+    setShouldPauseFlow(false);
+    setIsWaitingForConfirmation(false);
+    // Clear any pending timeouts
+    nextStepTimeouts.forEach((timeout) => clearTimeout(timeout));
+    setNextStepTimeouts([]);
+
     progressAnim.setValue(0);
-    stepAnimations.forEach(anim => anim.setValue(0));
+    stepAnimations.forEach((anim) => anim.setValue(0));
     pulseAnim.setValue(1);
     fadeAnim.setValue(0);
 
@@ -116,6 +248,61 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
       useNativeDriver: true,
     }).start();
   };
+
+  // Get current loading message based on state
+  const getCurrentLoadingMessage = (): string => {
+    if (isCompleted) {
+      return 'Transaction completed successfully!';
+    }
+
+    if (isWaitingForConfirmation || (isBroadcasting && shouldPauseFlow)) {
+      if (broadcastId && masterState.has(broadcastId)) {
+        const state = masterState.get(broadcastId);
+        if (state?.isAck && !state?.isComplete) {
+          return 'Received acknowledgment, waiting for final confirmation...';
+        }
+        if (state?.isComplete && state?.isAck) {
+          return 'Transaction confirmed by mesh network! Finalizing...';
+        }
+        return 'Broadcasting transaction via mesh network...';
+      }
+      return 'Waiting for mesh network confirmation...';
+    }
+
+    // If we've reached the gateway step, always show waiting message
+    if (currentStep >= 3) {
+      return 'Found gateway device, waiting for mesh network confirmation...';
+    }
+
+    return LOADING_MESSAGES[loadingMessageIndex] || 'Processing...';
+  };
+
+  // Get chunk progress for display
+  const getChunkProgress = useCallback((): {
+    received: number;
+    total: number;
+  } => {
+    if (broadcastId && masterState.has(broadcastId)) {
+      const state = masterState.get(broadcastId);
+      if (state) {
+        const progress = {
+          received: state.chunks.size,
+          total: state.totalChunks || 1,
+        };
+        return progress;
+      }
+    }
+    return { received: 0, total: 0 };
+  }, [broadcastId, masterState]);
+
+  // Check if we should show chunk progress (only after receiving is_ack flag)
+  const shouldShowChunkProgress = useCallback((): boolean => {
+    if (broadcastId && masterState.has(broadcastId)) {
+      const state = masterState.get(broadcastId);
+      return state?.isAck === true;
+    }
+    return false;
+  }, [broadcastId, masterState]);
 
   // Function to sign the transaction
   const handleTransactionSigning = async () => {
@@ -128,7 +315,9 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
       // Use the user's wallet address from component level hook
 
       // Convert amount to wei (assuming amount is in ETH)
-      const amountInWei = BigInt(Math.floor(parseFloat(transactionData.amount) * Math.pow(10, 18)));
+      const amountInWei = BigInt(
+        Math.floor(parseFloat(transactionData.amount) * Math.pow(10, 18))
+      );
       const valueHex = '0x' + amountInWei.toString(16);
 
       // Create transaction data for signing
@@ -142,7 +331,12 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
       };
 
       console.log('🔐 Signing transaction in TransactionLoader...');
-      console.log('🌐 Selected chain:', transactionData.chain, 'Chain ID:', transactionData.chainId);
+      console.log(
+        '🌐 Selected chain:',
+        transactionData.chain,
+        'Chain ID:',
+        transactionData.chainId
+      );
       console.log('💰 Selected currency:', transactionData.currency);
       console.log('📝 Transaction data:', txData);
 
@@ -155,30 +349,53 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         to: transactionData.toAddress,
         value: valueHex,
         gas: '0x' + parseInt(txData.gasLimit || '21000').toString(16),
-        gasPrice: '0x' + parseInt(txData.gasPrice || '20000000000').toString(16),
+        gasPrice:
+          '0x' + parseInt(txData.gasPrice || '20000000000').toString(16),
         nonce: '0x' + parseInt(txData.nonce || '0').toString(16),
-        chainId: '0x' + txData.chainId.toString(16),
+        chainId: '0x' + txData?.chainId?.toString(16),
         data: txData.data || '0x',
         signature: {
           v: signedTransaction.v,
           r: signedTransaction.r,
           s: signedTransaction.s,
-        }
+        },
       };
 
-      console.log('✅ SIGNED TRANSACTION RESULT:');
-      console.log('==================================');
       console.log('Transaction Hash:', signedTransaction.transactionHash);
       console.log('Raw Transaction:', signedTransaction.rawTransaction);
-      console.log('==================================');
 
       console.log('📋 LOCAL TRANSACTION PAYLOAD:');
-      console.log('==================================');
       console.log(JSON.stringify(transactionPayload, null, 2));
-      console.log('==================================');
 
-      // TODO: Send the transaction payload
+      // Start broadcasting the transaction payload
+      try {
+        const payloadString = JSON.stringify(transactionPayload);
+        await broadcastMessage(payloadString);
+        setIsBroadcasting(true);
+        setShouldPauseFlow(true); // Pause the flow here
+        setIsWaitingForConfirmation(true); // Set waiting for confirmation
 
+        // Find the broadcast ID from the master state
+        // Since broadcastMessage creates a new entry, we need to find the latest one
+        const states = Array.from(masterState.entries());
+        const latestState = states.find(
+          ([_, state]) => state.fullMessage === payloadString && !state.isAck
+        );
+
+        if (latestState) {
+          setBroadcastId(latestState[0]);
+          console.log(
+            '🚀 Started broadcasting transaction with ID:',
+            latestState[0]
+          );
+        }
+      } catch (error) {
+        console.error('❌ Error broadcasting transaction payload:', error);
+        // Reset flags on error
+        setIsBroadcasting(false);
+        setShouldPauseFlow(false);
+        setIsWaitingForConfirmation(false);
+      }
     } catch (error) {
       console.error('❌ Error signing transaction:', error);
     }
@@ -186,12 +403,24 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
 
   const startTransactionFlow = async () => {
     let totalDuration = 0;
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
 
     TRANSACTION_STEPS.forEach((step, index) => {
-      setTimeout(async () => {
+      const timeout = setTimeout(async () => {
+        // Check if we should pause the flow (happens at gateway step) or waiting for confirmation
+        if ((shouldPauseFlow || isWaitingForConfirmation) && index >= 3) {
+          // Stop at "Finding Internet Gateway" step (index 3) and wait for confirmation
+          console.log(
+            '🔄 Pausing transaction flow at step:',
+            step.title,
+            'waiting for confirmation...'
+          );
+          return; // Don't proceed to next steps
+        }
+
         setCurrentStep(index);
         animateStep(index);
-        
+
         if (index < LOADING_MESSAGES.length) {
           setLoadingMessageIndex(index);
         }
@@ -200,18 +429,26 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         if (index === 0) {
           await handleTransactionSigning();
         }
+
+        // If this is the "Finding Internet Gateway" step, pause here and wait for confirmation
+        if (index === 3) {
+          setIsWaitingForConfirmation(true);
+          setShouldPauseFlow(true);
+          console.log(
+            '🌐 Reached Finding Internet Gateway step - waiting for confirmation...'
+          );
+        }
       }, totalDuration);
 
+      timeouts.push(timeout);
       totalDuration += step.duration;
     });
 
-    // Complete the transaction
-    setTimeout(() => {
-      setIsCompleted(true);
-      setTimeout(() => {
-        onComplete();
-      }, 1500);
-    }, totalDuration);
+    // Store timeouts for cleanup
+    setNextStepTimeouts(timeouts);
+
+    // REMOVED: Automatic completion logic - now always waits for confirmation
+    // The completion will ONLY be handled by the master state monitor after receiving confirmation
   };
 
   const animateStep = (stepIndex: number) => {
@@ -254,7 +491,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
     }
   };
 
-  const renderStep = (step: typeof TRANSACTION_STEPS[0], index: number) => {
+  const renderStep = (step: (typeof TRANSACTION_STEPS)[0], index: number) => {
     const isActive = index <= currentStep;
     const isCurrent = index === currentStep;
     const isCompleted = index < currentStep;
@@ -287,25 +524,60 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
               },
             ]}
           >
-            <Text style={[styles.stepIconText, isActive && styles.stepIconTextActive]}>
+            <Text
+              style={[
+                styles.stepIconText,
+                isActive && styles.stepIconTextActive,
+              ]}
+            >
               {step.icon}
             </Text>
           </Animated.View>
           {index < TRANSACTION_STEPS.length - 1 && (
-            <View style={[styles.stepLine, isCompleted && styles.stepLineCompleted]} />
+            <View
+              style={[styles.stepLine, isCompleted && styles.stepLineCompleted]}
+            />
           )}
         </View>
         <View style={styles.stepContent}>
           <Text style={[styles.stepTitle, isActive && styles.stepTitleActive]}>
             {step.title}
           </Text>
-          <Text style={[styles.stepDescription, isActive && styles.stepDescriptionActive]}>
+          <Text
+            style={[
+              styles.stepDescription,
+              isActive && styles.stepDescriptionActive,
+            ]}
+          >
             {step.description}
           </Text>
         </View>
       </Animated.View>
     );
   };
+
+  // Calculate progress width based on chunks or steps
+  const getProgressValue = useCallback((): number => {
+    // Only use chunk progress if we should show it (after receiving is_ack flag)
+    if (shouldShowChunkProgress()) {
+      const chunkProgress = getChunkProgress();
+      if (chunkProgress.total > 0) {
+        return chunkProgress.received / chunkProgress.total;
+      }
+    }
+    // Otherwise use step progress
+    return (currentStep + 1) / TRANSACTION_STEPS.length;
+  }, [getChunkProgress, shouldShowChunkProgress, currentStep]);
+
+  // Update progress bar animation based on chunk progress
+  useEffect(() => {
+    const progressValue = getProgressValue();
+    Animated.timing(progressAnim, {
+      toValue: progressValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [getProgressValue, progressAnim]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -324,7 +596,8 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
                 Sending {transactionData.amount} {transactionData.currency}
               </Text>
               <Text style={styles.transactionAddress}>
-                to {transactionData.toAddress.slice(0, 6)}...{transactionData.toAddress.slice(-4)}
+                to {transactionData.toAddress.slice(0, 6)}...
+                {transactionData.toAddress.slice(-4)}
               </Text>
               <Text style={styles.transactionChain}>
                 on {transactionData.chain}
@@ -336,15 +609,27 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         {/* Fixed Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+            <Animated.View
+              style={[styles.progressFill, { width: progressWidth }]}
+            />
           </View>
           <Text style={styles.progressText}>
-            Step {currentStep + 1} of {TRANSACTION_STEPS.length}
+            {(() => {
+              // Show chunk progress only after receiving is_ack flag
+              if (shouldShowChunkProgress()) {
+                const chunkProgress = getChunkProgress();
+                if (chunkProgress.total > 0) {
+                  return `${chunkProgress.received}/${chunkProgress.total}`;
+                }
+              }
+              // Otherwise show step progress
+              return `Step ${currentStep + 1} of ${TRANSACTION_STEPS.length}`;
+            })()}
           </Text>
         </View>
 
         {/* Scrollable Content */}
-        <ScrollView 
+        <ScrollView
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -357,7 +642,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
           {/* Loading Message */}
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingMessage}>
-              {LOADING_MESSAGES[loadingMessageIndex] || 'Processing...'}
+              {getCurrentLoadingMessage()}
             </Text>
           </View>
 
@@ -383,7 +668,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
   );
 };
 
-const { width, height } = Dimensions.get('window');
+// const { width, height } = Dimensions.get('window'); // Commented out as not used
 
 const styles = StyleSheet.create({
   fullPageContainer: {

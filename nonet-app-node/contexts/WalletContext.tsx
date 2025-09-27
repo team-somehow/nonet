@@ -45,7 +45,7 @@ interface WalletContextType {
   scannedAddresses: ScannedAddress[];
   
   // Wallet functions
-  createWallet: () => Promise<WalletData>;
+  createWallet: (onWalletCreated?: (walletData: WalletData) => Promise<void>) => Promise<WalletData>;
   loadWallet: () => Promise<void>;
   clearWallet: () => Promise<void>;
   logout: () => Promise<void>;
@@ -314,7 +314,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   }, []);
 
   // Create a new wallet with real ECDSA cryptography
-  const createWallet = async (): Promise<WalletData> => {
+  const createWallet = async (onWalletCreated?: (walletData: WalletData) => Promise<void>): Promise<WalletData> => {
     try {
       console.log('🔐 Generating new ECDSA wallet...');
       
@@ -341,6 +341,18 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setWalletData(newWalletData);
       setUserWalletAddress(address);
       setIsLoggedIn(true);
+
+      // Call the callback function if provided
+      if (onWalletCreated) {
+        try {
+          console.log('📞 Calling wallet creation callback...');
+          await onWalletCreated(newWalletData);
+          console.log('✅ Wallet creation callback completed');
+        } catch (callbackError) {
+          console.error('❌ Error in wallet creation callback:', callbackError);
+          // Don't throw here - wallet creation succeeded, callback failure shouldn't break the flow
+        }
+      }
 
       return newWalletData;
     } catch (error) {

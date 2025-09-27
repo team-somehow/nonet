@@ -112,14 +112,12 @@ const generateRealWallet = (): {
   // This identifies the smart contract and chain you're interacting with.
   // The 'name' and 'version' must match what's defined in your ERC20 contract.
 
-  const version = "0x3a5b30d74e90e08f0e576cf9f6f2457e44af38b3";
   const domain = {
-    name: "PYUSD", // The token's name
-    version: version, // The contract version
+    name: "PayPal USD", // The token's full name, as registered in the contract
+    version: "2", // The EIP-712 version string from the contract
     chainId: chainId,
     verifyingContract: tokenContractAddress,
   };
-
   // --- 3. EIP-712 Types ---
   // This defines the structure of the message you are signing.
   // The names and types MUST exactly match the struct in the smart contract.
@@ -140,7 +138,7 @@ const generateRealWallet = (): {
   const transferValue = {
     from: fromAddress,
     to: toAddress,
-    value: ethers.parseUnits("1", 18), // Transfer 1 token (assuming 18 decimals)
+    value: ethers.parseUnits("1", 6), // Transfer 1 token (assuming 18 decimals)
     validAfter: 0, // Immediately valid
     validBefore: now + 3600, // Valid for 1 hour
     nonce: ethers.randomBytes(32), // A unique, random nonce to prevent replay attacks
@@ -150,7 +148,10 @@ const generateRealWallet = (): {
   // This is the core "offline" step. It uses the user's private key to sign the typed data.
   const signature = await wallet.signTypedData(domain, types, transferValue);
 
-  // --- 6. Output ---
+  // --- 6. Split signature into v, r, s components ---
+  const splitSignature = ethers.Signature.from(signature);
+
+  // --- 7. Output ---
   // These are the parameters someone else (a "relayer") will use to call the contract.
   console.log("--- Transaction Parameters ---");
   console.log("from:        ", transferValue.from);
@@ -160,4 +161,33 @@ const generateRealWallet = (): {
   console.log("validBefore: ", transferValue.validBefore);
   console.log("nonce:       ", ethers.hexlify(transferValue.nonce));
   console.log("signature:   ", signature);
+
+  console.log("\n--- Signature Components for Etherscan ---");
+  console.log("v:", splitSignature.v);
+  console.log("r:", splitSignature.r);
+  console.log("s:", splitSignature.s);
+
+  // --- 8. Final JSON Output ---
+  console.log(
+    "\nOf course. Here is the JSON representation of the fields in your screenshot."
+  );
+  console.log("\n```json");
+  console.log(
+    JSON.stringify(
+      {
+        from: transferValue.from,
+        to: transferValue.to,
+        value: transferValue.value.toString(),
+        validAfter: transferValue.validAfter.toString(),
+        validBefore: transferValue.validBefore.toString(),
+        nonce: ethers.hexlify(transferValue.nonce),
+        v: splitSignature.v.toString(),
+        r: splitSignature.r,
+        s: splitSignature.s,
+      },
+      null,
+      2
+    )
+  );
+  console.log("```");
 })();

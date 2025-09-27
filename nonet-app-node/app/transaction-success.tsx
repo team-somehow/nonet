@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -16,6 +16,7 @@ import {
 } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
+import { useBle } from '@/contexts/BleContext';
 
 export default function TransactionSuccessPage(): React.JSX.Element {
   const theme = useTheme();
@@ -52,6 +53,7 @@ export default function TransactionSuccessPage(): React.JSX.Element {
     return `0x${hash.slice(2, 34)}...${hash.slice(-32)}`;
   };
 
+  
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>

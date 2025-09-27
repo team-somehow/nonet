@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import {
   NeoBrutalDivider 
 } from '@/components/NeoBrutalismComponents';
 import { NeoBrutalismColors } from '@/constants/neoBrutalism';
+import { useBle } from "@/contexts/BleContext";
 
 export default function Scan(): React.JSX.Element {
   const [isScanning, setIsScanning] = useState(false);
@@ -74,6 +75,7 @@ export default function Scan(): React.JSX.Element {
       ]
     );
   };
+
 
   const renderAddressItem = ({ item }: { item: ScannedAddress }) => (
     <View style={styles.addressItem}>

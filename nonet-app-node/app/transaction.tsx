@@ -19,7 +19,6 @@ import {
   Divider,
   Chip,
   useTheme,
-  Avatar,
 } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';

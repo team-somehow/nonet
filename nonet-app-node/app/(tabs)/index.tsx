@@ -6,11 +6,20 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  SafeAreaView,
 } from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { Colors } from "@/constants/theme";
 import { useWallet, ScannedAddress } from "@/contexts/WalletContext";
+import { 
+  NeoBrutalButton, 
+  NeoBrutalCard, 
+  NeoBrutalHeader, 
+  NeoBrutalBadge,
+  NeoBrutalDivider 
+} from '@/components/NeoBrutalismComponents';
+import { NeoBrutalismColors } from '@/constants/neoBrutalism';
 
 export default function Scan(): React.JSX.Element {
   const [permission, requestPermission] = useCameraPermissions();
@@ -97,28 +106,32 @@ export default function Scan(): React.JSX.Element {
 
   if (!permission) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>Requesting camera permission...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.message}>Requesting camera permission...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>
-          Camera permission is required to scan QR codes
-        </Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.message}>
+            Camera permission is required to scan QR codes
+          </Text>
+          <TouchableOpacity style={styles.button} onPress={requestPermission}>
+            <Text style={styles.buttonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (isScanning) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <CameraView
           style={styles.camera}
           facing={facing}
@@ -140,12 +153,13 @@ export default function Scan(): React.JSX.Element {
             </TouchableOpacity>
           </View>
         </CameraView>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
       <Text style={styles.title}>QR Code Scanner</Text>
 
       <TouchableOpacity
@@ -184,23 +198,29 @@ export default function Scan(): React.JSX.Element {
           />
         )}
       </View>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
-    padding: 20,
+    backgroundColor: NeoBrutalismColors.background,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: Colors.light.text,
+    fontSize: 32,
+    fontWeight: "800",
+    color: NeoBrutalismColors.textPrimary,
     textAlign: "center",
-    marginBottom: 30,
-    marginTop: 20,
+    marginBottom: 24,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   message: {
     fontSize: 16,
@@ -221,16 +241,26 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   scanButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 15,
-    borderRadius: 10,
-    marginBottom: 30,
+    backgroundColor: NeoBrutalismColors.primary,
+    borderColor: NeoBrutalismColors.primary,
+    borderWidth: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    marginBottom: 32,
+    shadowColor: NeoBrutalismColors.primary,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
   },
   scanButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "600",
+    color: NeoBrutalismColors.textInverse,
+    fontSize: 16,
+    fontWeight: "800",
     textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   camera: {
     flex: 1,

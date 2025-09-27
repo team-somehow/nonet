@@ -130,17 +130,6 @@ export const CURRENCIES: Record<string, CurrencyConfig> = {
     chains: ['polygonMumbai'],
     isNative: true,
   },
-
-  bnb: {
-    id: 'bnb',
-    name: 'BNB',
-    symbol: 'BNB',
-    decimals: 18,
-    imageUrl: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-    chains: ['bscTestnet'],
-    isNative: true,
-  },
-
   usdc: {
     id: 'usdc',
     name: 'USD Coin',
@@ -152,16 +141,16 @@ export const CURRENCIES: Record<string, CurrencyConfig> = {
     contractAddress: '0x07865c6E87B9F70255377e024ace6630C1Eaa37F', // Sepolia USDC
   },
 
-  usdt: {
-    id: 'usdt',
-    name: 'Tether USD',
-    symbol: 'USDT',
-    decimals: 6,
-    imageUrl: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-    chains: ['sepolia', 'polygonMumbai', 'bscTestnet'],
-    isNative: false,
-    contractAddress: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', // Sepolia USDT
-  },
+//   usdt: {
+//     id: 'usdt',
+//     name: 'Tether USD',
+//     symbol: 'USDT',
+//     decimals: 6,
+//     imageUrl: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+//     chains: ['sepolia', 'polygonMumbai', 'bscTestnet'],
+//     isNative: false,
+//     contractAddress: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', // Sepolia USDT
+//   },
 };
 
 // Default selections

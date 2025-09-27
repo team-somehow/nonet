@@ -232,6 +232,7 @@ export default function TransactionPage(): React.JSX.Element {
           />
         </View>
 
+
         {/* Submit Button */}
         <TouchableOpacity
           style={[

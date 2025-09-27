@@ -393,6 +393,22 @@ export default function Test(): JSX.Element {
         </Text>
       </TouchableOpacity>
 
+      {/* Simple Transaction Button */}
+      <TouchableOpacity
+        onPress={() => router.push('/simple-transaction')}
+        style={{
+          backgroundColor: '#2196F3',
+          padding: 12,
+          borderRadius: 8,
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: 'white', fontWeight: '700' }}>
+          💸 Simple ETH Transaction
+        </Text>
+      </TouchableOpacity>
+
       {/* Logout Button */}
       <TouchableOpacity
         onPress={handleLogout}

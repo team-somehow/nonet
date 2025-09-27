@@ -14,7 +14,8 @@ import BleAdvertiser from "react-native-ble-advertiser";
 import { BleManager } from "react-native-ble-plx";
 
 // Define a consistent UUID for your service. Both broadcaster and listener must use this.
-const MESH_SERVICE_UUID = "12345678-1234-5678-9abc-dedede880880";
+// NOTE: This must match the UUID in test.tsx for cross-device communication
+const MESH_SERVICE_UUID = "12345678-1234-5678-9abc-432156789012";
 
 /**
  * Broadcasts a single data chunk over BLE advertisement (GAP).
@@ -33,14 +34,41 @@ export const broadcastOverBle = async (chunk: Uint8Array): Promise<void> => {
     console.log(`Payload data:`, payloadAsArray);
 
     // Start a new broadcast.
-    // The chunk data is embedded in the 'serviceData' field of the advertisement.
-    await (BleAdvertiser as any).broadcast(MESH_SERVICE_UUID, payloadAsArray, {
-      // We are only sending data, so the device is not connectable.
-      connectable: false,
-      // Advertising options
-      includeDeviceName: false,
-      includeTxPowerLevel: false,
-    });
+    // Try using manufacturer data instead of service data for better compatibility
+    console.log(`Broadcasting with UUID: ${MESH_SERVICE_UUID}`);
+
+    // First try the service data approach
+    try {
+      await (BleAdvertiser as any).broadcast(
+        MESH_SERVICE_UUID,
+        payloadAsArray,
+        {
+          // We are only sending data, so the device is not connectable.
+          connectable: false,
+          // Advertising options
+          includeDeviceName: false,
+          includeTxPowerLevel: false,
+        }
+      );
+      console.log("Service data broadcast successful");
+    } catch (serviceError) {
+      console.log(
+        "Service data broadcast failed, trying manufacturer data:",
+        serviceError
+      );
+
+      // Fallback to manufacturer data approach
+      await (BleAdvertiser as any).broadcastManufacturerData(
+        0xffff,
+        payloadAsArray,
+        {
+          connectable: false,
+          includeDeviceName: false,
+          includeTxPowerLevel: false,
+        }
+      );
+      console.log("Manufacturer data broadcast successful");
+    }
 
     console.log("Broadcast started successfully.");
   } catch (error: any) {
@@ -84,9 +112,10 @@ export const listenOverBle = (
 
   console.log(`Starting BLE scan for service: ${MESH_SERVICE_UUID}`);
 
-  // Start scanning for devices that are advertising our specific service UUID.
+  // Start scanning for ALL devices (not filtering by service UUID)
+  // because the service data might not be properly detected when filtering
   bleManager.startDeviceScan(
-    [MESH_SERVICE_UUID],
+    null, // Scan for all devices instead of filtering by service UUID
     { allowDuplicates: true }, // Allow duplicates to get continuous updates
     (error, device) => {
       if (error) {
@@ -95,14 +124,35 @@ export const listenOverBle = (
         return;
       }
 
-      if (!device || !(device as any).serviceData) {
-        return; // Ignore devices without service data.
+      if (!device) {
+        console.log("No device found in scan callback");
+        return;
       }
 
-      // The service data is often encoded in base64 by the ble-plx library.
-      const serviceDataB64 = (device as any).serviceData[MESH_SERVICE_UUID];
+      // Check if this device is advertising our service UUID
+      const hasOurService = device.serviceUUIDs?.includes(MESH_SERVICE_UUID);
+      const hasServiceData =
+        (device as any).serviceData &&
+        (device as any).serviceData[MESH_SERVICE_UUID];
 
+      if (!hasOurService && !hasServiceData) {
+        return;
+      }
+
+      // Check both service data and manufacturer data
+      const serviceDataB64 = (device as any).serviceData?.[MESH_SERVICE_UUID];
+      const manufacturerData = (device as any).manufacturerData;
+
+      console.log("Looking for service data with UUID:", MESH_SERVICE_UUID);
+      console.log(
+        "Available service data keys:",
+        Object.keys((device as any).serviceData || {})
+      );
+      console.log("Manufacturer data:", manufacturerData);
+
+      // Try service data first
       if (serviceDataB64) {
+        console.log("Found service data, processing...");
         try {
           // 1. Decode the base64 string to a raw byte string.
           const byteString = base64.decode(serviceDataB64);
@@ -113,14 +163,63 @@ export const listenOverBle = (
             chunk[i] = byteString.charCodeAt(i);
           }
 
-          console.log(`Received chunk with ${chunk.length} bytes.`);
+          console.log(
+            `Received service data chunk with ${chunk.length} bytes.`
+          );
 
           // 3. Pass the reconstructed chunk to the callback function.
           onChunkReceived(chunk);
         } catch (decodeError) {
           console.error("Error decoding service data:", decodeError);
         }
+        return;
       }
+
+      // Try manufacturer data as fallback
+      if (manufacturerData) {
+        console.log("Found manufacturer data, processing...");
+        try {
+          // 1. Decode the base64 string to a raw byte string.
+          const byteString = base64.decode(manufacturerData);
+
+          // 2. Convert the raw byte string into a Uint8Array.
+          const fullChunk = new Uint8Array(byteString.length);
+          for (let i = 0; i < byteString.length; i++) {
+            fullChunk[i] = byteString.charCodeAt(i);
+          }
+
+          console.log(
+            `Received manufacturer data chunk with ${fullChunk.length} bytes:`,
+            Array.from(fullChunk)
+          );
+
+          // 3. Skip the first 2 bytes (company ID 0xFFFF) to get our 6-byte payload
+          let chunk: Uint8Array;
+          if (
+            fullChunk.length === 8 &&
+            fullChunk[0] === 255 &&
+            fullChunk[1] === 255
+          ) {
+            // Strip the company ID prefix to get our 6-byte payload
+            chunk = fullChunk.slice(2);
+            console.log(
+              `Stripped company ID, payload is now ${chunk.length} bytes:`,
+              Array.from(chunk)
+            );
+          } else {
+            // Use the full chunk if it doesn't have the expected prefix
+            chunk = fullChunk;
+          }
+
+          // 4. Pass the reconstructed chunk to the callback function.
+          onChunkReceived(chunk);
+        } catch (decodeError) {
+          console.error("Error decoding manufacturer data:", decodeError);
+        }
+        return;
+      }
+
+      console.log("No valid data found in service data or manufacturer data");
     }
   );
 
@@ -263,6 +362,10 @@ const App = () => {
     const stopListener = listenOverBle(managerRef.current, (chunk) => {
       const decodedChunk = decodeSingleChunk(chunk);
       console.log("abba daaba Decoded Chunk:", decodedChunk);
+      // message append
+      setReceivedMessages((value) => {
+        return [JSON.stringify(decodedChunk)];
+      });
     });
 
     return () => {
@@ -292,10 +395,10 @@ const App = () => {
     // send chunks via ble
     broadcastOverBle(createdChunks[0]);
 
-    for (const chunk of createdChunks) {
-      const decodedChunk = decodeSingleChunk(chunk);
-      console.log("Decoded Chunk:", decodedChunk);
-    }
+    // for (const chunk of createdChunks) {
+    //   const decodedChunk = decodeSingleChunk(chunk);
+    //   console.log("Decoded Chunk:", decodedChunk);
+    // }
   };
 
   const handleStopBroadcasting = () => {

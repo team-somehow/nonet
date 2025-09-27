@@ -1,20 +1,29 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Alert, View, StyleSheet, ScrollView, Platform } from 'react-native';
 import {
-  Alert,
+  Provider as PaperProvider,
+  DefaultTheme,
   Text,
-  View,
-  StyleSheet,
   TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-} from 'react-native';
+  Button,
+  Card,
+  Title,
+  Paragraph,
+  Badge,
+  Surface,
+} from 'react-native-paper';
 import base64 from 'react-native-base64';
 import BleAdvertiser from 'react-native-ble-advertiser';
 import { BleManager, ScanMode } from 'react-native-ble-plx';
 
 // A consistent UUID for your service. Both broadcaster and listener must use this.
 const MESH_SERVICE_UUID = 'f1d0c001-c9e5-4d6c-96ff-7f73f4f99c15';
+
+interface MessageState {
+  totalChunks: number;
+  isComplete: boolean;
+  chunks: Map<number, string>; // This is the 'data map'
+}
 /**
  * Broadcasts a single data chunk over BLE advertisement.
  * It first tries to use service data, falling back to manufacturer data for compatibility.
@@ -268,6 +277,20 @@ export const decodeSingleChunk = (chunk: Uint8Array): DataPayload | null => {
   };
 };
 
+// Custom theme for better UI
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: '#2196F3',
+    accent: '#FF5722',
+    background: '#f5f5f5',
+    surface: '#ffffff',
+    text: '#333333',
+    placeholder: '#999999',
+  },
+};
+
 const App = () => {
   const [message, setMessage] = useState('');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
@@ -276,13 +299,10 @@ const App = () => {
   const broadcastIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null
   );
-  const reassemblyBufferRef = useRef<
-    Record<number, { totalChunks: number; chunks: Map<number, string> }>
-  >({});
 
-  // --- MODIFICATION 1: Add a ref to track IDs of completed messages ---
-  // A Set is efficient for checking if an ID has already been seen.
-  const receivedMessageIDsRef = useRef(new Set<number>());
+  // --- 2. Initialize the Master State using a ref ---
+  // The key is the message ID, and the value is the MessageState object.
+  const masterStateRef = useRef(new Map<number, MessageState>());
 
   useEffect(() => {
     managerRef.current = new BleManager();
@@ -297,6 +317,7 @@ const App = () => {
       }
     }
 
+    // --- 3. Implement the new reassembly logic in the listener ---
     const stopListener = listenOverBle(managerRef.current, (chunk) => {
       const decodedChunk = decodeSingleChunk(chunk);
       if (!decodedChunk || decodedChunk.isAck) {
@@ -304,38 +325,56 @@ const App = () => {
       }
 
       const { id, totalChunks, chunkNumber, decodedData } = decodedChunk;
-      const buffer = reassemblyBufferRef.current;
+      const masterState = masterStateRef.current;
 
-      // --- MODIFICATION 2: Use the ref for duplicate checking ---
-      // This check prevents re-processing a message that has already been fully assembled.
-      if (receivedMessageIDsRef.current.has(id)) {
+      // If the message is already complete, ignore all subsequent chunks for it.
+      if (masterState.get(id)?.isComplete) {
         return;
       }
 
-      if (!buffer[id]) {
-        buffer[id] = {
+      // If this is the first packet for a new message ID, create its entry.
+      if (!masterState.has(id)) {
+        console.log(`Creating new entry in master state for message ID: ${id}`);
+        masterState.set(id, {
           totalChunks: totalChunks,
+          isComplete: false,
           chunks: new Map<number, string>(),
-        };
+        });
       }
 
-      buffer[id].chunks.set(chunkNumber, decodedData);
+      const messageEntry = masterState.get(id)!;
 
-      if (buffer[id].chunks.size === buffer[id].totalChunks) {
+      // Only accept and store missing packets. Ignore duplicate chunks.
+      if (messageEntry.chunks.has(chunkNumber)) {
+        return; // This chunk has already been received.
+      }
+
+      console.log(
+        `Storing chunk ${chunkNumber}/${totalChunks} for message ID: ${id}`
+      );
+      messageEntry.chunks.set(chunkNumber, decodedData);
+
+      // Check if the message is now complete.
+      if (messageEntry.chunks.size === messageEntry.totalChunks) {
+        // Mark as complete to ignore future packets for this ID.
+        messageEntry.isComplete = true;
+
+        // Log the required completion message.
+        console.log(
+          `✅ Received the complete chunked pack of ${messageEntry.totalChunks} chunks by receiver`
+        );
+
+        // Reassemble the full message in the correct order.
         let fullMessage = '';
-        for (let i = 1; i <= totalChunks; i++) {
-          fullMessage += buffer[id].chunks.get(i) || '';
+        for (let i = 1; i <= messageEntry.totalChunks; i++) {
+          fullMessage += messageEntry.chunks.get(i) || '';
         }
 
-        // --- MODIFICATION 3: Add the ID to the ref after assembling ---
-        receivedMessageIDsRef.current.add(id);
-
+        // Update the UI.
         setReceivedMessages((prev) => {
           const formattedMessage = `[${new Date().toLocaleTimeString()}] ${fullMessage}`;
           return [...prev, formattedMessage];
         });
-
-        delete buffer[id];
       }
     });
 
@@ -346,10 +385,9 @@ const App = () => {
       }
       managerRef.current?.destroy();
     };
-    // --- MODIFICATION 4: Remove the dependency array to run the effect only once ---
-  }, []); // Empty array ensures this effect runs only on mount and cleans up on unmount.
+  }, []); // Effect runs only once on mount.
 
-  // handleStartBroadcasting and handleStopBroadcasting remain unchanged from the previous version.
+  // handleStartBroadcasting and handleStopBroadcasting remain unchanged.
   const handleStartBroadcasting = () => {
     if (!message.trim()) {
       Alert.alert('Input Error', 'Please enter a message to broadcast.');
@@ -368,9 +406,6 @@ const App = () => {
       if (chunkIndex >= createdChunks.length) {
         chunkIndex = 0;
       }
-      console.log(
-        `Broadcasting chunk ${chunkIndex + 1}/${createdChunks.length} (looping)`
-      );
       broadcastOverBle(createdChunks[chunkIndex]);
       chunkIndex++;
     }, 250);
@@ -385,143 +420,188 @@ const App = () => {
     setIsBroadcasting(false);
   };
 
-  // The JSX remains the same.
   return (
-    <View style={styles.container}>
-      {/* Broadcaster Section */}
-      <View style={styles.broadcasterSection}>
-        <Text style={styles.sectionTitle}>Broadcaster</Text>
-        <TextInput
-          style={styles.textInput}
-          placeholder="Enter message to broadcast..."
-          value={message}
-          onChangeText={setMessage}
-          multiline
-        />
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.startButton,
-              isBroadcasting && styles.disabledButton,
-            ]}
-            onPress={handleStartBroadcasting}
-            disabled={isBroadcasting || !message.trim()}
-          >
-            <Text style={styles.buttonText}>Start</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.stopButton,
-              !isBroadcasting && styles.disabledButton,
-            ]}
-            onPress={handleStopBroadcasting}
-            disabled={!isBroadcasting}
-          >
-            <Text style={styles.buttonText}>Stop</Text>
-          </TouchableOpacity>
-        </View>
-        {isBroadcasting && (
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>🔴 Broadcasting: {message}</Text>
+    <PaperProvider theme={theme}>
+      <View style={styles.container}>
+        {/* Broadcaster Section */}
+        <Surface style={styles.broadcasterSection} elevation={2}>
+          <Title style={styles.sectionTitle}>Broadcaster</Title>
+          <TextInput
+            mode="outlined"
+            label="Message to broadcast"
+            placeholder="Enter message to broadcast..."
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            numberOfLines={4}
+            style={styles.textInput}
+          />
+          <View style={styles.buttonContainer}>
+            <Button
+              mode="contained"
+              onPress={handleStartBroadcasting}
+              disabled={isBroadcasting || !message.trim()}
+              style={[styles.button, styles.startButton]}
+              buttonColor={
+                isBroadcasting || !message.trim() ? '#ccc' : '#4CAF50'
+              }
+              textColor="white"
+            >
+              Start
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleStopBroadcasting}
+              disabled={!isBroadcasting}
+              style={[styles.button, styles.stopButton]}
+              buttonColor={!isBroadcasting ? '#ccc' : '#f44336'}
+              textColor="white"
+            >
+              Stop
+            </Button>
           </View>
-        )}
-      </View>
-
-      {/* Receiver Section */}
-      <View style={styles.receiverSection}>
-        <Text style={styles.sectionTitle}>Receiver</Text>
-        <ScrollView
-          style={styles.messagesList}
-          contentContainerStyle={{ padding: 10 }}
-        >
-          {receivedMessages.length === 0 ? (
-            <Text style={styles.placeholderText}>
-              Listening for messages...
-            </Text>
-          ) : (
-            receivedMessages.map((msg, index) => (
-              <View key={index} style={styles.messageItem}>
-                <Text style={styles.messageText}>{msg}</Text>
-              </View>
-            ))
+          {isBroadcasting && (
+            <Card style={styles.statusContainer}>
+              <Card.Content>
+                <Paragraph style={styles.statusText}>
+                  🔴 Broadcasting: {message}
+                </Paragraph>
+              </Card.Content>
+            </Card>
           )}
-        </ScrollView>
-        <View style={styles.listeningIndicator}>
-          <Text style={styles.listeningText}>🎧 Listening for signals...</Text>
-        </View>
+        </Surface>
+
+        {/* Receiver Section */}
+        <Surface style={styles.receiverSection} elevation={2}>
+          <Title style={styles.sectionTitle}>Receiver</Title>
+          <Card style={styles.messagesList}>
+            <ScrollView contentContainerStyle={styles.messagesScrollContent}>
+              {receivedMessages.length === 0 ? (
+                <Paragraph style={styles.placeholderText}>
+                  Listening for messages...
+                </Paragraph>
+              ) : (
+                receivedMessages.map((msg, index) => (
+                  <Card key={index} style={styles.messageItem} mode="outlined">
+                    <Card.Content>
+                      <Paragraph style={styles.messageText}>{msg}</Paragraph>
+                    </Card.Content>
+                  </Card>
+                ))
+              )}
+            </ScrollView>
+          </Card>
+          <Card style={styles.listeningIndicator} mode="outlined">
+            <Card.Content style={styles.listeningContent}>
+              <Badge visible={true} style={styles.listeningBadge}>
+                🎧
+              </Badge>
+              <Text style={styles.listeningText}>Listening for signals...</Text>
+            </Card.Content>
+          </Card>
+        </Surface>
       </View>
-    </View>
+    </PaperProvider>
   );
 };
 
-// --- Styles (simplified for brevity, you can keep your original styles) ---
+// Updated styles for Paper components and better layout
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
   broadcasterSection: {
     flex: 1,
     backgroundColor: '#e3f2fd',
     padding: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: '#ddd',
+    margin: 10,
+    borderRadius: 12,
+    // Fixed positioning to prevent button overlap
+    justifyContent: 'flex-start',
   },
-  receiverSection: { flex: 1, backgroundColor: '#f3e5f5', padding: 20 },
+  receiverSection: {
+    flex: 1,
+    backgroundColor: '#f3e5f5',
+    padding: 20,
+    margin: 10,
+    borderRadius: 12,
+  },
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
     color: '#333',
   },
   textInput: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 15,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    minHeight: 80,
-    textAlignVertical: 'top',
     marginBottom: 20,
+    backgroundColor: 'white',
   },
-  buttonContainer: { flexDirection: 'row', justifyContent: 'space-around' },
-  button: { flex: 0.45, padding: 15, borderRadius: 10, alignItems: 'center' },
-  startButton: { backgroundColor: '#4CAF50' },
-  stopButton: { backgroundColor: '#f44336' },
-  disabledButton: { backgroundColor: '#ccc' },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    // Fixed spacing to prevent overlap
+    paddingHorizontal: 5,
+  },
+  button: {
+    flex: 0.47,
+    marginHorizontal: 5,
+    // Ensure buttons have proper minimum height
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  startButton: {},
+  stopButton: {},
   statusContainer: {
-    marginTop: 15,
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#f44336',
+    marginTop: 10,
+    backgroundColor: 'rgba(244, 67, 54, 0.05)',
   },
-  statusText: { color: '#f44336', fontSize: 14, textAlign: 'center' },
+  statusText: {
+    color: '#f44336',
+    fontSize: 14,
+    textAlign: 'center',
+  },
   messagesList: {
     flex: 1,
     backgroundColor: 'white',
-    borderRadius: 10,
     marginBottom: 15,
+    borderRadius: 8,
   },
-  placeholderText: { textAlign: 'center', color: '#999', paddingTop: 20 },
-  messageItem: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  messageText: { fontSize: 14, color: '#333' },
-  listeningIndicator: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  messagesScrollContent: {
     padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-    alignItems: 'center',
+    flexGrow: 1,
   },
-  listeningText: { color: '#4CAF50', fontSize: 14, fontWeight: 'bold' },
+  placeholderText: {
+    textAlign: 'center',
+    color: '#999',
+    paddingTop: 20,
+  },
+  messageItem: {
+    marginBottom: 8,
+    backgroundColor: '#fafafa',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  listeningIndicator: {
+    backgroundColor: 'rgba(76, 175, 80, 0.05)',
+    borderColor: '#4CAF50',
+  },
+  listeningContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listeningBadge: {
+    marginRight: 10,
+    backgroundColor: '#4CAF50',
+  },
+  listeningText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 });
 
 export default App;

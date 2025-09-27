@@ -15,7 +15,7 @@ import {
 } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useCameraPermissions } from 'expo-camera';
-import { useWallet } from '@/contexts/WalletContext';
+import { useWallet, WalletData } from '@/contexts/WalletContext';
 import { 
   NeoBrutalButton, 
   NeoBrutalCard, 
@@ -38,6 +38,19 @@ export default function WelcomePage(): React.JSX.Element {
       router.replace('/(tabs)');
     }
   }, [isLoggedIn]);
+
+  // Callback function that gets triggered after wallet is successfully created
+  const onWalletCreated = async (walletData: WalletData): Promise<void> => {
+    try {
+      console.log('🚀 Wallet creation callback triggered for address:', walletData.address);
+      
+      // TODO: Callback for wallet creation
+      
+    } catch (error) {
+      console.error('❌ Error in wallet creation callback:', error);
+      // Don't throw - let wallet creation succeed even if API calls fail
+    }
+  };
 
   const handleCreateWallet = async () => {
     try {
@@ -63,7 +76,7 @@ export default function WelcomePage(): React.JSX.Element {
       // Create wallet regardless of permission results
       // App will work with limited functionality if permissions denied
       console.log('🔐 Creating wallet...');
-      await createWallet();
+      await createWallet(onWalletCreated);
       
       console.log('✅ Wallet created, navigating to app...');
       // Navigate to main app

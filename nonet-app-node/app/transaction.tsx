@@ -113,6 +113,9 @@ export default function TransactionPage(): React.JSX.Element {
         setSelectedCurrency(item);
         setShowCurrencyModal(false);
       }}
+      style={styles.modalListItem}
+      titleStyle={styles.modalItemTitle}
+      descriptionStyle={styles.modalItemDescription}
     />
   );
 
@@ -130,6 +133,9 @@ export default function TransactionPage(): React.JSX.Element {
         setSelectedChain(item);
         setShowChainModal(false);
       }}
+      style={styles.modalListItem}
+      titleStyle={styles.modalItemTitle}
+      descriptionStyle={styles.modalItemDescription}
     />
   );
 
@@ -297,6 +303,8 @@ export default function TransactionPage(): React.JSX.Element {
               renderItem={renderCurrencyItem}
               keyExtractor={(item) => item.id}
               style={styles.modalList}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => null}
             />
           </Surface>
         </Modal>
@@ -322,6 +330,8 @@ export default function TransactionPage(): React.JSX.Element {
               renderItem={renderChainItem}
               keyExtractor={(item) => item.id}
               style={styles.modalList}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => null}
             />
           </Surface>
         </Modal>
@@ -383,33 +393,63 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   modalSurface: {
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   modalList: {
     maxHeight: 400,
+    paddingVertical: 8,
   },
   imageContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#F8F9FA',
     borderWidth: 2,
     borderColor: '#E5E5EA',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    marginRight: 4,
   },
   chainImage: {
     width: 32,
     height: 32,
     borderRadius: 16,
+  },
+  modalListItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    minHeight: 80,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#F0F0F0',
+  },
+  modalItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  modalItemDescription: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 });

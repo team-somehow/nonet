@@ -8,6 +8,8 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { router } from 'expo-router';
+import { useWallet } from '@/contexts/WalletContext';
 import { BleManager, Device } from 'react-native-ble-plx';
 import BleAdvertiser from 'react-native-ble-advertiser';
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
@@ -27,6 +29,7 @@ export default function Test(): JSX.Element {
   const [mode, setMode] = useState<'idle' | 'advertising' | 'scanning'>('idle');
   const [logs, setLogs] = useState<LogItem[]>([]);
   const managerRef = useRef<BleManager | null>(null);
+  const { logout } = useWallet();
 
   useEffect(() => {
     managerRef.current = new BleManager();
@@ -52,6 +55,31 @@ export default function Test(): JSX.Element {
     const item = { id: `${Date.now()}-${logCounter++}`, text: t }; // Use timestamp + counter for unique keys
     setLogs((p) => [item, ...p].slice(0, 200));
     logNow(t);
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout? This will clear your wallet and all data.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              router.replace('/welcome');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   async function requestPermissionsOrFail(): Promise<boolean> {
@@ -348,6 +376,38 @@ export default function Test(): JSX.Element {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Crypto Wallet Demo Button */}
+      <TouchableOpacity
+        onPress={() => router.push('/wallet-demo')}
+        style={{
+          backgroundColor: '#4CAF50',
+          padding: 12,
+          borderRadius: 8,
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: 'white', fontWeight: '700' }}>
+          🔐 Real Crypto Wallet Demo
+        </Text>
+      </TouchableOpacity>
+
+      {/* Logout Button */}
+      <TouchableOpacity
+        onPress={handleLogout}
+        style={{
+          backgroundColor: '#ff4444',
+          padding: 12,
+          borderRadius: 8,
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <Text style={{ color: 'white', fontWeight: '700' }}>
+          Logout & Test Welcome
+        </Text>
+      </TouchableOpacity>
 
       <Text style={{ marginBottom: 8, fontWeight: '600' }}>Logs</Text>
       <FlatList

@@ -57,107 +57,30 @@ export default function WelcomePage(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
-        {/* Hackathon Badge */}
-        <View style={styles.hackathonBadge}>
-          <NeoBrutalBadge 
-            text="ETH DELHI 2024" 
-            variant="success" 
-            style={styles.badge}
-          />
-        </View>
-
-        {/* Hero Section with Neo-Brutalism */}
-        <View style={styles.heroSection}>
-          <NeoBrutalHeader 
-            title="NONET"
-            subtitle="Offline Mesh Network for Crypto"
-            variant="hero"
-            style={styles.heroHeader}
-          />
-          
-          {/* Cyber-style decoration */}
-          <View style={styles.cyberDecoration}>
-            <Text style={styles.cyberText}>{'>'} DECENTRALIZED</Text>
-            <Text style={styles.cyberText}>{'>'} OFFLINE-FIRST</Text>
-            <Text style={styles.cyberText}>{'>'} WEB3 READY</Text>
+        {/* Logo Section */}
+        <View style={styles.logoSection}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoIcon}>🌐</Text>
           </View>
+          <Text style={styles.appName}>NoNet</Text>
         </View>
 
-        <NeoBrutalDivider variant="primary" thickness="thick" />
-
-        {/* Features with Neo-Brutal Cards */}
-        <View style={styles.featuresSection}>
-          <NeoBrutalHeader 
-            title="FEATURES"
-            variant="section"
-            style={styles.sectionHeader}
-          />
-          
-          <View style={styles.featuresGrid}>
-            <NeoBrutalCard variant="primary" style={styles.featureCard}>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureIcon}>📡</Text>
-                <Text style={styles.featureTitle}>MESH NETWORK</Text>
-                <Text style={styles.featureDesc}>Send transactions without internet</Text>
-              </View>
-            </NeoBrutalCard>
-
-            <NeoBrutalCard variant="accent" style={styles.featureCard}>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureIcon}>🔐</Text>
-                <Text style={styles.featureTitle}>ZERO TRUST</Text>
-                <Text style={styles.featureDesc}>End-to-end encrypted transactions</Text>
-              </View>
-            </NeoBrutalCard>
-
-            <NeoBrutalCard variant="primary" style={styles.featureCard}>
-              <View style={styles.featureContent}>
-                <Text style={styles.featureIcon}>⚡</Text>
-                <Text style={styles.featureTitle}>LIGHTNING FAST</Text>
-                <Text style={styles.featureDesc}>Instant P2P crypto transfers</Text>
-              </View>
-            </NeoBrutalCard>
-          </View>
-        </View>
-
-        <NeoBrutalDivider variant="secondary" thickness="medium" />
-
-        {/* Call to Action */}
-        <View style={styles.ctaSection}>
+        {/* Create Wallet Button */}
+        <View style={styles.buttonSection}>
           <NeoBrutalButton
-            title={isCreatingWallet ? "GENERATING WALLET..." : "START BUILDING"}
+            title={isCreatingWallet ? "Creating Wallet..." : "Create Wallet"}
             onPress={handleCreateWallet}
             variant="primary"
             size="large"
             disabled={isCreatingWallet}
-            style={styles.ctaButton}
+            style={styles.createButton}
           />
           
           {isCreatingWallet && (
             <View style={styles.loadingIndicator}>
               <ActivityIndicator size="small" color={NeoBrutalismColors.primary} />
-              <Text style={styles.loadingText}>CREATING SECURE WALLET...</Text>
             </View>
           )}
-
-          <Text style={styles.disclaimer}>
-            {'>'} YOUR KEYS, YOUR CRYPTO
-          </Text>
-          <Text style={styles.disclaimer}>
-            {'>'} NON-CUSTODIAL & SECURE
-          </Text>
-        </View>
-
-        {/* Footer with Hackathon Branding */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            BUILT FOR ETH DELHI HACKATHON 2024
-          </Text>
-          <View style={styles.techStack}>
-            <NeoBrutalBadge text="REACT NATIVE" variant="info" />
-            <NeoBrutalBadge text="ETHEREUM" variant="warning" />
-            <NeoBrutalBadge text="MESH NET" variant="error" />
-          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -170,127 +93,53 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
   },
   
-  // Hackathon Badge
-  hackathonBadge: {
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  badge: {
-    transform: [{ rotate: '3deg' }],
-  },
-  
-  // Hero Section
-  heroSection: {
+  // Logo Section
+  logoSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 80,
   },
-  heroHeader: {
+  logoContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: NeoBrutalismColors.surfaceAlt,
+    borderWidth: 4,
+    borderColor: NeoBrutalismColors.primary,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 32,
+    shadowColor: NeoBrutalismColors.primary,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 0,
+    elevation: 8,
   },
-  cyberDecoration: {
-    alignItems: 'flex-start',
+  logoIcon: {
+    fontSize: 60,
   },
-  cyberText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: NeoBrutalismColors.primary,
-    fontFamily: 'monospace',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  
-  // Features Section
-  featuresSection: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    marginBottom: 16,
-  },
-  featuresGrid: {
-    gap: 12,
-  },
-  featureCard: {
-    marginBottom: 8,
-  },
-  featureContent: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  featureIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+  appName: {
+    fontSize: 48,
+    fontWeight: '900',
     color: NeoBrutalismColors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 4,
-    letterSpacing: 1,
-  },
-  featureDesc: {
-    fontSize: 12,
-    color: NeoBrutalismColors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  
-  // CTA Section
-  ctaSection: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  ctaButton: {
-    marginBottom: 16,
-    minWidth: 250,
-  },
-  loadingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: NeoBrutalismColors.primary,
-    fontFamily: 'monospace',
-    letterSpacing: 1,
-  },
-  disclaimer: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: NeoBrutalismColors.textSecondary,
-    fontFamily: 'monospace',
-    textAlign: 'center',
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  
-  // Footer
-  footer: {
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 2,
-    borderTopColor: NeoBrutalismColors.border,
-  },
-  footerText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: NeoBrutalismColors.textTertiary,
-    textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: 1,
+    letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  techStack: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+  
+  // Button Section
+  buttonSection: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  createButton: {
+    minWidth: 280,
+    marginBottom: 16,
+  },
+  loadingIndicator: {
+    marginTop: 16,
   },
 });

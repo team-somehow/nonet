@@ -30,7 +30,6 @@ const CustomLightTheme = {
   },
 };
 
-// Neo-Brutalism Paper theme for ETH Delhi Hackathon
 const neoBrutalismPaperTheme = {
   ...MD3LightTheme,
   colors: {

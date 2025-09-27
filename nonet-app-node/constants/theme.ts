@@ -1,5 +1,4 @@
 /**
- * Neo-Brutalism theme for ETH Delhi Hackathon
  * Bold, high-contrast, modern design with sharp edges and striking visuals
  */
 

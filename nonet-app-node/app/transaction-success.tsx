@@ -55,6 +55,7 @@ export default function TransactionSuccessPage(): React.JSX.Element {
     return `0x${hash.slice(2, 34)}...${hash.slice(-32)}`;
   };
 
+  
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}

@@ -102,19 +102,21 @@ const generateRealWallet = (): {
   console.log("Please send some ETH to this address to continue");
   await new Promise((resolve) => process.stdin.once("data", resolve));
 
-  const PAYPAL_CONTRACT_ADDRESS = "0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9";
-  const tokenContractAddress = PAYPAL_CONTRACT_ADDRESS;
+  const TOKEN_CONTRACT_ADDRESS = "0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01"; // Flow EVM testnet contract
+  const tokenContractAddress = TOKEN_CONTRACT_ADDRESS;
 
-  const toAddress = "0xcCffd74D0ADf8641E487E6679bD707B7e2FE968B"; // Recipient address
-  const chainId = 11155111; // sepolia
+  const toAddress = "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c"; // Recipient address (your relayer address)
+  const chainId = 545; // flow on evm testnet
 
   // --- 2. EIP-712 Domain ---
   // This identifies the smart contract and chain you're interacting with.
   // The 'name' and 'version' must match what's defined in your ERC20 contract.
 
+  // IMPORTANT: The 'name' must match exactly what was used when deploying the contract
+  // From contract query: name is "somehow"
   const domain = {
-    name: "PayPal USD", // The token's full name, as registered in the contract
-    version: "2", // The EIP-712 version string from the contract
+    name: "somehow", // This matches the deployed contract name
+    version: "1", // The EIP-712 version string from the contract
     chainId: chainId,
     verifyingContract: tokenContractAddress,
   };
@@ -138,7 +140,7 @@ const generateRealWallet = (): {
   const transferValue = {
     from: fromAddress,
     to: toAddress,
-    value: ethers.parseUnits("1", 6), // Transfer 1 token (assuming 18 decimals)
+    value: ethers.parseUnits("1", 18), // Transfer 1 token (18 decimals as per contract)
     validAfter: 0, // Immediately valid
     validBefore: now + 3600, // Valid for 1 hour
     nonce: ethers.randomBytes(32), // A unique, random nonce to prevent replay attacks
@@ -168,9 +170,7 @@ const generateRealWallet = (): {
   console.log("s:", splitSignature.s);
 
   // --- 8. Final JSON Output ---
-  console.log(
-    "\nOf course. Here is the JSON representation of the fields in your screenshot."
-  );
+  console.log("\n--- JSON for submitTxnOnChain.ts script ---");
   console.log("\n```json");
   console.log(
     JSON.stringify(
@@ -181,13 +181,16 @@ const generateRealWallet = (): {
         validAfter: transferValue.validAfter.toString(),
         validBefore: transferValue.validBefore.toString(),
         nonce: ethers.hexlify(transferValue.nonce),
-        v: splitSignature.v.toString(),
-        r: splitSignature.r,
-        s: splitSignature.s,
+        signature: signature, // Combined signature for contract
       },
       null,
       2
     )
   );
   console.log("```");
+
+  console.log("\n--- Legacy format (v, r, s components) ---");
+  console.log("v:", splitSignature.v.toString());
+  console.log("r:", splitSignature.r);
+  console.log("s:", splitSignature.s);
 })();

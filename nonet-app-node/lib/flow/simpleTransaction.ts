@@ -1,8 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ethers, JsonRpcProvider, Wallet, parseEther, formatEther } from "ethers";
+import { CHAINS, getChainById } from '@/data/chains';
 
-// Flow EVM testnet configuration
-const TESTNET_RPC_URL = "https://testnet.evm.nodes.onflow.org"; // Flow EVM testnet endpoint
+// Get Flow chain configuration
+const FLOW_CHAIN = getChainById('flow');
+if (!FLOW_CHAIN) {
+  throw new Error('Flow chain configuration not found');
+}
+
+const TESTNET_RPC_URL = FLOW_CHAIN.rpcUrl;
 
 // Transaction result interface
 export interface SimpleTransactionResult {
@@ -166,12 +172,12 @@ export async function getCurrentGasPrice(): Promise<string> {
   }
 }
 
-// Export Flow EVM testnet info
+// Export Flow EVM testnet info from centralized config
 export const TESTNET_INFO = {
-  name: 'Flow EVM Testnet',
-  rpcUrl: TESTNET_RPC_URL,
-  chainId: 545, // Flow EVM testnet chain ID
-  currency: 'FLOW',
-  explorer: 'https://evm-testnet.flowscan.io/',
-  faucet: 'https://testnet-faucet.onflow.org/',
+  name: FLOW_CHAIN.name,
+  rpcUrl: FLOW_CHAIN.rpcUrl,
+  chainId: FLOW_CHAIN.chainId,
+  currency: FLOW_CHAIN.nativeCurrency.symbol,
+  explorer: FLOW_CHAIN.explorer,
+  faucet: FLOW_CHAIN.faucet,
 };

@@ -39,11 +39,11 @@ export default function SimpleTransactionScreen() {
       setIsLoading(true);
       
       // Get balance
-      const bal = await getBalance(walletData.address);
+      const bal = await getBalance(walletData.address, 'flow');
       setBalance(bal);
       
       // Get gas price
-      const gas = await getCurrentGasPrice();
+      const gas = await getCurrentGasPrice('flow');
       setGasPrice(gas);
       
     } catch (error) {
@@ -95,11 +95,12 @@ export default function SimpleTransactionScreen() {
           {
             text: 'Send',
             onPress: async () => {
-              const result = await sendSimpleTransaction(
-                walletData.privateKey,
+              const result = await sendSimpleTransaction({
+                privateKey: walletData.privateKey,
                 receiverAddress,
-                amount
-              );
+                amount,
+                chainId: 'flow', // Default to Flow chain
+              });
               
               setLastTransaction(result);
               

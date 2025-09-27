@@ -1,14 +1,11 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
@@ -23,21 +20,21 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Scan',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass.circle.fill" color={color} />,
+          tabBarIcon: ({ color }) => <MaterialIcons size={24} name="search" color={color} />,
         }}
       />
       <Tabs.Screen
         name="show"
         options={{
           title: 'Show',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="eye.fill" color={color} />,
+          tabBarIcon: ({ color }) => <MaterialIcons size={24} name="visibility" color={color} />,
         }}
       />
       <Tabs.Screen
         name="test"
         options={{
           title: 'test',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ color }) => <MaterialIcons size={24} name="send" color={color} />,
         }}
       />
     </Tabs>

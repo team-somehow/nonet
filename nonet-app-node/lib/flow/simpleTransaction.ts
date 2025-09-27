@@ -1,14 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ethers, JsonRpcProvider, Wallet, parseEther, formatEther } from "ethers";
-import { CHAINS, getChainById } from '@/data/chains';
-
-// Get Flow chain configuration
-const FLOW_CHAIN = getChainById('flow');
-if (!FLOW_CHAIN) {
-  throw new Error('Flow chain configuration not found');
-}
-
-const TESTNET_RPC_URL = FLOW_CHAIN.rpcUrl;
+import { getChainById, type ChainConfig } from '@/data/chains';
 
 // Transaction result interface
 export interface SimpleTransactionResult {
@@ -18,28 +10,51 @@ export interface SimpleTransactionResult {
   gasUsed?: string;
   gasPrice?: string;
   blockNumber?: number;
+  chainId?: number;
+  chainName?: string;
+  currency?: string;
+}
+
+// Transaction parameters interface
+export interface TransactionParams {
+  privateKey: string;
+  receiverAddress: string;
+  amount: string;
+  chainId: string;
 }
 
 /**
- * Send a simple FLOW transaction on Flow EVM testnet
- * @param privateKey - Sender's private key (with or without 0x prefix)
- * @param receiverAddress - Receiver's wallet address
- * @param amountInFlow - Amount to send in FLOW (as string, e.g., "0.01")
+ * Send a simple transaction on any supported EVM chain
+ * @param params - Transaction parameters including chain info
  * @returns Transaction result
  */
 export async function sendSimpleTransaction(
-  privateKey: string,
-  receiverAddress: string,
-  amountInFlow: string
+  params: TransactionParams
 ): Promise<SimpleTransactionResult> {
+  const { privateKey, receiverAddress, amount, chainId } = params;
+  
   try {
-    console.log('🚀 Starting simple Flow transaction...');
-    console.log('Receiver:', receiverAddress);
-    console.log('Amount:', amountInFlow, 'FLOW');
+    // Get chain configuration
+    const chain = getChainById(chainId);
+    if (!chain) {
+      return {
+        success: false,
+        error: `Unsupported chain: ${chainId}`,
+        chainId: 0,
+        chainName: 'Unknown',
+        currency: 'Unknown',
+      };
+    }
 
-    // 1. Create provider (connect to Flow EVM testnet)
-    const provider = new JsonRpcProvider(TESTNET_RPC_URL);
-    console.log('✅ Provider connected to Flow EVM testnet');
+    console.log(`🚀 Starting ${chain.name} transaction...`);
+    console.log('Chain:', chain.name);
+    console.log('Currency:', chain.nativeCurrency.symbol);
+    console.log('Receiver:', receiverAddress);
+    console.log('Amount:', amount, chain.nativeCurrency.symbol);
+
+    // 1. Create provider (connect to selected chain)
+    const provider = new JsonRpcProvider(chain.rpcUrl);
+    console.log(`✅ Provider connected to ${chain.name}`);
 
     // 2. Create wallet from private key
     const cleanPrivateKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
@@ -49,17 +64,20 @@ export async function sendSimpleTransaction(
 
     // 3. Check sender balance
     const balance = await provider.getBalance(senderAddress);
-    const balanceInFlow = formatEther(balance);
-    console.log('💰 Sender balance:', balanceInFlow, 'FLOW');
+    const balanceFormatted = formatEther(balance);
+    console.log(`💰 Sender balance: ${balanceFormatted} ${chain.nativeCurrency.symbol}`);
 
     // 4. Validate sufficient balance
-    const amountToSend = parseFloat(amountInFlow);
-    const currentBalance = parseFloat(balanceInFlow);
+    const amountToSend = parseFloat(amount);
+    const currentBalance = parseFloat(balanceFormatted);
     
     if (amountToSend > currentBalance) {
       return {
         success: false,
-        error: `Insufficient balance. You have ${balanceInFlow} FLOW but trying to send ${amountInFlow} FLOW`,
+        error: `Insufficient balance. You have ${balanceFormatted} ${chain.nativeCurrency.symbol} but trying to send ${amount} ${chain.nativeCurrency.symbol}`,
+        chainId: chain.chainId,
+        chainName: chain.name,
+        currency: chain.nativeCurrency.symbol,
       };
     }
 
@@ -68,13 +86,17 @@ export async function sendSimpleTransaction(
       return {
         success: false,
         error: `Invalid receiver address: ${receiverAddress}`,
+        chainId: chain.chainId,
+        chainName: chain.name,
+        currency: chain.nativeCurrency.symbol,
       };
     }
 
     // 6. Create transaction
     const transaction = {
       to: receiverAddress,
-      value: parseEther(amountInFlow),
+      value: parseEther(amount),
+      gasLimit: chain.gasSettings?.defaultGasLimit || '21000',
     };
 
     console.log('📝 Transaction created:', transaction);
@@ -93,6 +115,9 @@ export async function sendSimpleTransaction(
         success: false,
         error: 'Transaction failed to get receipt',
         transactionHash: txResponse.hash,
+        chainId: chain.chainId,
+        chainName: chain.name,
+        currency: chain.nativeCurrency.symbol,
       };
     }
 
@@ -106,10 +131,15 @@ export async function sendSimpleTransaction(
       gasUsed: receipt.gasUsed.toString(),
       gasPrice: receipt.gasPrice?.toString() || '0',
       blockNumber: receipt.blockNumber,
+      chainId: chain.chainId,
+      chainName: chain.name,
+      currency: chain.nativeCurrency.symbol,
     };
 
   } catch (error: any) {
     console.error('❌ Transaction failed:', error);
+    
+    const chain = getChainById(chainId);
     
     // Handle common errors
     let errorMessage = error.message || 'Unknown error occurred';
@@ -127,18 +157,27 @@ export async function sendSimpleTransaction(
     return {
       success: false,
       error: errorMessage,
+      chainId: chain?.chainId || 0,
+      chainName: chain?.name || 'Unknown',
+      currency: chain?.nativeCurrency.symbol || 'Unknown',
     };
   }
 }
 
 /**
- * Get balance of an address
+ * Get balance of an address on any supported chain
  * @param address - Wallet address to check
- * @returns Balance in FLOW as string
+ * @param chainId - Chain ID (defaults to 'flow')
+ * @returns Balance as string
  */
-export async function getBalance(address: string): Promise<string> {
+export async function getBalance(address: string, chainId: string = 'flow'): Promise<string> {
   try {
-    const provider = new JsonRpcProvider(TESTNET_RPC_URL);
+    const chain = getChainById(chainId);
+    if (!chain) {
+      throw new Error(`Unsupported chain: ${chainId}`);
+    }
+
+    const provider = new JsonRpcProvider(chain.rpcUrl);
     const balance = await provider.getBalance(address);
     return formatEther(balance);
   } catch (error) {
@@ -157,27 +196,48 @@ export function isValidAddress(address: string): boolean {
 }
 
 /**
- * Get current gas price
+ * Get current gas price for any supported chain
+ * @param chainId - Chain ID (defaults to 'flow')
  * @returns Gas price in Gwei as string
  */
-export async function getCurrentGasPrice(): Promise<string> {
+export async function getCurrentGasPrice(chainId: string = 'flow'): Promise<string> {
   try {
-    const provider = new JsonRpcProvider(TESTNET_RPC_URL);
+    const chain = getChainById(chainId);
+    if (!chain) {
+      throw new Error(`Unsupported chain: ${chainId}`);
+    }
+
+    const provider = new JsonRpcProvider(chain.rpcUrl);
     const feeData = await provider.getFeeData();
     const gasPrice = feeData.gasPrice || 0n;
     return formatEther(gasPrice * 1000000000n); // Convert to Gwei
   } catch (error) {
     console.error('Failed to get gas price:', error);
-    return '20'; // Default 20 Gwei
+    const chain = getChainById(chainId);
+    return chain?.gasSettings?.defaultGasPrice || '20'; // Default fallback
   }
 }
 
-// Export Flow EVM testnet info from centralized config
-export const TESTNET_INFO = {
-  name: FLOW_CHAIN.name,
-  rpcUrl: FLOW_CHAIN.rpcUrl,
-  chainId: FLOW_CHAIN.chainId,
-  currency: FLOW_CHAIN.nativeCurrency.symbol,
-  explorer: FLOW_CHAIN.explorer,
-  faucet: FLOW_CHAIN.faucet,
-};
+/**
+ * Get chain info for any supported chain
+ * @param chainId - Chain ID (defaults to 'flow')
+ * @returns Chain information object
+ */
+export function getChainInfo(chainId: string = 'flow') {
+  const chain = getChainById(chainId);
+  if (!chain) {
+    throw new Error(`Unsupported chain: ${chainId}`);
+  }
+
+  return {
+    name: chain.name,
+    rpcUrl: chain.rpcUrl,
+    chainId: chain.chainId,
+    currency: chain.nativeCurrency.symbol,
+    explorer: chain.explorer,
+    faucet: chain.faucet,
+  };
+}
+
+// Export Flow EVM testnet info for backward compatibility
+export const TESTNET_INFO = getChainInfo('flow');

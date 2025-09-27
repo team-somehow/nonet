@@ -15,6 +15,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
+import QRCode from 'react-native-qrcode-svg';
 
 export default function TransactionSuccessPage(): React.JSX.Element {
   const theme = useTheme();
@@ -44,164 +45,120 @@ export default function TransactionSuccessPage(): React.JSX.Element {
     router.replace('/(tabs)/');
   };
 
+  // Generate signature string from transaction hash (simplified for demo)
+  const generateSignatureString = (hash: string): string => {
+    if (!hash) return 'Generating signature...';
+    // This would normally be the actual signature from the transaction
+    return `0x${hash.slice(2, 34)}...${hash.slice(-32)}`;
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Success Icon */}
+        {/* Success Header */}
         <View style={styles.successHeader}>
-          <Surface style={styles.successIconContainer} elevation={3}>
-            <Text style={styles.successIcon}>🎉</Text>
-          </Surface>
+          <Text style={styles.successIcon}>✅</Text>
           <Text variant="headlineMedium" style={[styles.successTitle, { color: theme.colors.onBackground }]}>
             Transaction Sent!
           </Text>
-          <Text variant="bodyLarge" style={[styles.successSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Your transaction has been broadcast through the offline mesh network
-          </Text>
         </View>
 
-        {/* Transaction Summary Card */}
-        <Card style={styles.summaryCard}>
-          <Card.Content>
-            <View style={styles.summaryHeader}>
-              <Text variant="titleLarge" style={styles.summaryTitle}>Transaction Summary</Text>
-              <Chip mode="flat" style={styles.statusChip} textStyle={styles.statusText}>
-                ✓ Broadcast
-              </Chip>
+        {/* QR Code Section - MOST IMPORTANT */}
+        <Card style={styles.qrCard} elevation={4}>
+          <Card.Content style={styles.qrContent}>
+            <Text variant="titleLarge" style={styles.qrTitle}>Transaction QR Code</Text>
+            <View style={styles.qrContainer}>
+              {txHash ? (
+                <QRCode
+                  value={txHash}
+                  size={200}
+                  backgroundColor="white"
+                  color="black"
+                />
+              ) : (
+                <View style={styles.qrPlaceholder}>
+                  <Text>Generating QR...</Text>
+                </View>
+              )}
             </View>
+          </Card.Content>
+        </Card>
 
+        {/* Transaction Hash - SECOND MOST IMPORTANT */}
+        <Card style={styles.hashCard} elevation={2}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.hashTitle}>Transaction Hash</Text>
+            <Surface style={styles.hashSurface} elevation={1}>
+              <Text variant="bodyMedium" style={styles.hashText} selectable>
+                {txHash || 'Generating hash...'}
+              </Text>
+            </Surface>
+          </Card.Content>
+        </Card>
+
+        {/* Hash Signature - THIRD MOST IMPORTANT */}
+        <Card style={styles.signatureCard} elevation={2}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.signatureTitle}>Hash Signature</Text>
+            <Surface style={styles.signatureSurface} elevation={1}>
+              <Text variant="bodyMedium" style={styles.signatureText} selectable>
+                {generateSignatureString(txHash || '')}
+              </Text>
+            </Surface>
+          </Card.Content>
+        </Card>
+
+        {/* Primary Action - GO HOME BUTTON */}
+        <Button
+          mode="contained"
+          onPress={handleGoHome}
+          style={styles.homeButton}
+          contentStyle={styles.homeButtonContent}
+        >
+          Go to Home
+        </Button>
+
+        {/* Additional Details - Less Important */}
+        <Card style={styles.detailsCard}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.detailsTitle}>Transaction Details</Text>
             <Divider style={styles.divider} />
-
-            {/* Amount */}
-            <View style={styles.summaryItem}>
-              <Text variant="labelMedium" style={styles.summaryLabel}>Amount Sent</Text>
-              <Text variant="headlineSmall" style={styles.summaryValue}>
-                {amount} {currency}
+            
+            <View style={styles.detailRow}>
+              <Text variant="labelMedium" style={styles.detailLabel}>Amount</Text>
+              <Text variant="bodyMedium" style={styles.detailValue}>{amount} {currency}</Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text variant="labelMedium" style={styles.detailLabel}>Network</Text>
+              <Chip mode="outlined" style={styles.chainChip}>{chain}</Chip>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text variant="labelMedium" style={styles.detailLabel}>To Address</Text>
+              <Text variant="bodySmall" style={styles.addressText}>
+                {toAddress ? `${toAddress.slice(0, 8)}...${toAddress.slice(-8)}` : 'Unknown'}
               </Text>
             </View>
-
-            {/* From Address */}
-            <View style={styles.summaryItem}>
-              <Text variant="labelMedium" style={styles.summaryLabel}>From</Text>
-              <Surface style={styles.addressSurface} elevation={1}>
-                <Text variant="bodyMedium" style={styles.summaryValueMono}>
-                  {fromAddress ? `${fromAddress.slice(0, 8)}...${fromAddress.slice(-8)}` : 'Unknown'}
-                </Text>
-              </Surface>
-            </View>
-
-            {/* To Address */}
-            <View style={styles.summaryItem}>
-              <Text variant="labelMedium" style={styles.summaryLabel}>To</Text>
-              <Surface style={styles.addressSurface} elevation={1}>
-                <Text variant="bodyMedium" style={styles.summaryValueMono}>
-                  {toAddress ? `${toAddress.slice(0, 8)}...${toAddress.slice(-8)}` : 'Unknown'}
-                </Text>
-              </Surface>
-            </View>
-
-            {/* Network */}
-            <View style={styles.summaryItem}>
-              <Text variant="labelMedium" style={styles.summaryLabel}>Network</Text>
-              <Chip mode="outlined">{chain}</Chip>
-            </View>
-
-            {/* Transaction Hash */}
-            <View style={styles.summaryItem}>
-              <Text variant="labelMedium" style={styles.summaryLabel}>Offline Transaction Hash</Text>
-              <Surface style={styles.addressSurface} elevation={1}>
-                <Text variant="bodySmall" style={styles.summaryValueMono}>
-                  {txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-10)}` : 'Generating...'}
-                </Text>
-              </Surface>
-            </View>
-
-            {/* Timestamp */}
-            <View style={styles.summaryItem}>
-              <Text variant="labelMedium" style={styles.summaryLabel}>Initiated At</Text>
-              <Text variant="bodyMedium" style={styles.summaryValue}>
+            
+            <View style={styles.detailRow}>
+              <Text variant="labelMedium" style={styles.detailLabel}>Time</Text>
+              <Text variant="bodyMedium" style={styles.detailValue}>
                 {timestamp ? new Date(parseInt(timestamp)).toLocaleString() : 'Just now'}
               </Text>
             </View>
           </Card.Content>
         </Card>
 
-        {/* Offline Notice */}
-        <Card style={styles.offlineCard}>
-          <Card.Content>
-            <View style={styles.offlineNotice}>
-              <Surface style={styles.offlineIconSurface} elevation={2}>
-                <Text style={styles.offlineIconText}>📡</Text>
-              </Surface>
-              <View style={styles.offlineContent}>
-                <Text variant="titleMedium" style={styles.offlineTitle}>Offline Transaction</Text>
-                <Text variant="bodyMedium" style={styles.offlineDescription}>
-                  This transaction was processed through our mesh network and will be confirmed once it reaches an internet gateway. No internet connection required!
-                </Text>
-              </View>
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Mesh Network Status */}
-        <View style={styles.meshStatus}>
-          <Text style={styles.meshTitle}>Mesh Network Route</Text>
-          <View style={styles.meshSteps}>
-            <View style={styles.meshStep}>
-              <View style={[styles.meshStepIcon, styles.meshStepCompleted]}>
-                <Text style={styles.meshStepText}>🔐</Text>
-              </View>
-              <Text style={styles.meshStepLabel}>Encrypted</Text>
-            </View>
-            <View style={styles.meshConnector} />
-            <View style={styles.meshStep}>
-              <View style={[styles.meshStepIcon, styles.meshStepCompleted]}>
-                <Text style={styles.meshStepText}>📡</Text>
-              </View>
-              <Text style={styles.meshStepLabel}>Hopped</Text>
-            </View>
-            <View style={styles.meshConnector} />
-            <View style={styles.meshStep}>
-              <View style={[styles.meshStepIcon, styles.meshStepCompleted]}>
-                <Text style={styles.meshStepText}>🌐</Text>
-              </View>
-              <Text style={styles.meshStepLabel}>Gateway</Text>
-            </View>
-            <View style={styles.meshConnector} />
-            <View style={styles.meshStep}>
-              <View style={[styles.meshStepIcon, styles.meshStepCompleted]}>
-                <Text style={styles.meshStepText}>✅</Text>
-              </View>
-              <Text style={styles.meshStepLabel}>Broadcast</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <Button
-            mode="contained"
-            onPress={handleGoHome}
-            style={styles.primaryButton}
-            contentStyle={styles.buttonContent}
-          >
-            Go to Home
-          </Button>
-
-          <Button
-            mode="outlined"
-            onPress={handleNewTransaction}
-            style={styles.secondaryButton}
-            contentStyle={styles.buttonContent}
-          >
-            Send Another Transaction
-          </Button>
-        </View>
-
-        {/* Footer Note */}
-        <Text variant="bodySmall" style={[styles.footerNote, { color: theme.colors.onSurfaceVariant }]}>
-          Your transaction is now in the queue and will be processed automatically when network connectivity is available.
-        </Text>
+        {/* Secondary Action */}
+        <Button
+          mode="outlined"
+          onPress={handleNewTransaction}
+          style={styles.secondaryButton}
+          contentStyle={styles.buttonContent}
+        >
+          Send Another Transaction
+        </Button>
       </ScrollView>
     </SafeAreaView>
   );
@@ -212,170 +169,158 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
+    padding: 20,
     paddingBottom: 40,
   },
+  
+  // Success Header
   successHeader: {
     alignItems: 'center',
     marginBottom: 24,
     marginTop: 16,
   },
-  successIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
   successIcon: {
-    fontSize: 40,
+    fontSize: 48,
+    marginBottom: 16,
   },
   successTitle: {
-    marginBottom: 8,
     textAlign: 'center',
+    fontWeight: '700',
   },
-  successSubtitle: {
+  
+  // QR Code - MOST IMPORTANT
+  qrCard: {
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+  },
+  qrContent: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  qrTitle: {
+    fontWeight: '700',
+    marginBottom: 20,
     textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 20,
+    color: '#333',
   },
-  summaryCard: {
-    marginBottom: 16,
-  },
-  meshStatus: {
-    backgroundColor: 'white',
+  qrContainer: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 30,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  meshTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  meshSteps: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  meshStep: {
-    alignItems: 'center',
-  },
-  meshStepIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  qrPlaceholder: {
+    width: 200,
+    height: 200,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
   },
-  meshStepCompleted: {
-    backgroundColor: '#E8F5E8',
-  },
-  meshStepText: {
-    fontSize: 18,
-  },
-  meshStepLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-  },
-  meshConnector: {
-    width: 20,
-    height: 2,
-    backgroundColor: '#4CAF50',
-    marginHorizontal: 5,
+  
+  // Transaction Hash - SECOND MOST IMPORTANT
+  hashCard: {
     marginBottom: 20,
+    backgroundColor: '#FFFFFF',
   },
-  footerNote: {
-    textAlign: 'center',
-    marginTop: 20,
-    lineHeight: 18,
-    fontStyle: 'italic',
-  },
-  // Paper component styles
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  summaryTitle: {
-    flex: 1,
-  },
-  statusChip: {
-    backgroundColor: '#E8F5E8',
-  },
-  statusText: {
+  hashTitle: {
     fontWeight: '600',
+    marginBottom: 12,
+    color: '#333',
+  },
+  hashSurface: {
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+  },
+  hashText: {
+    fontFamily: 'monospace',
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+  },
+  
+  // Hash Signature - THIRD MOST IMPORTANT
+  signatureCard: {
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+  },
+  signatureTitle: {
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333',
+  },
+  signatureSurface: {
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+  },
+  signatureText: {
+    fontFamily: 'monospace',
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+  },
+  
+  // Primary Home Button - FOURTH MOST IMPORTANT
+  homeButton: {
+    marginBottom: 32,
+    backgroundColor: '#007AFF',
+  },
+  homeButtonContent: {
+    paddingVertical: 16,
+  },
+  
+  // Additional Details - Less Important
+  detailsCard: {
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  detailsTitle: {
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#333',
   },
   divider: {
     marginBottom: 16,
   },
-  summaryItem: {
-    marginBottom: 12,
-  },
-  summaryLabel: {
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  summaryValue: {
-    fontWeight: '600',
-  },
-  summaryValueMono: {
-    fontFamily: 'monospace',
-  },
-  addressSurface: {
-    padding: 8,
-    borderRadius: 6,
-  },
-  offlineCard: {
-    marginBottom: 16,
-  },
-  offlineNotice: {
+  detailRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 4,
   },
-  offlineIconSurface: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  offlineIconText: {
-    fontSize: 20,
-  },
-  offlineContent: {
+  detailLabel: {
+    textTransform: 'uppercase',
+    color: '#666',
     flex: 1,
   },
-  offlineTitle: {
-    marginBottom: 4,
+  detailValue: {
+    fontWeight: '600',
+    color: '#333',
+    flex: 2,
+    textAlign: 'right',
   },
-  offlineDescription: {
-    lineHeight: 20,
+  chainChip: {
+    backgroundColor: '#E3F2FD',
   },
-  actionButtons: {
-    marginTop: 24,
-    gap: 12,
+  addressText: {
+    fontFamily: 'monospace',
+    color: '#666',
+    flex: 2,
+    textAlign: 'right',
   },
-  primaryButton: {
-    marginBottom: 8,
-  },
+  
+  // Secondary Button
   secondaryButton: {
-    marginBottom: 8,
+    marginBottom: 16,
   },
   buttonContent: {
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
 });

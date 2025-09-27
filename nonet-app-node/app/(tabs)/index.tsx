@@ -27,44 +27,14 @@ export default function Scan(): React.JSX.Element {
 
     setIsScanning(false);
 
-    // Show options for what to do with the scanned address
-    Alert.alert(
-      "Address Scanned Successfully",
-      `${data.slice(0, 6)}...${data.slice(-4)}`,
-      [
-        {
-          text: "Send Transaction",
-          onPress: () => {
-            // Add to scanned addresses and navigate to transaction page
-            try {
-              addScannedAddress(data);
-            } catch (error) {
-              // Address already exists, that's fine
-            }
-            router.push({
-              pathname: '/transaction',
-              params: { toAddress: data },
-            });
-          },
-          style: "default",
-        },
-        {
-          text: "Save Only",
-          onPress: () => {
-            try {
-              addScannedAddress(data);
-              Alert.alert("Success", "Address saved to your scanned addresses list.");
-            } catch (error) {
-              Alert.alert("Duplicate Address", "This wallet address has already been scanned.");
-            }
-          },
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-      ]
-    );
+    // Automatically add to scanned addresses if not already present
+    addScannedAddress(data);
+
+    // Navigate directly to transaction page
+    router.push({
+      pathname: '/transaction',
+      params: { toAddress: data },
+    });
   };
 
   const clearAddresses = () => {

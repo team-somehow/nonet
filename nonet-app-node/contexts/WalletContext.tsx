@@ -172,10 +172,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
   // Add a new scanned address
   const addScannedAddress = (address: string): void => {
-    // Check if address already exists
+    // Check if address already exists, if so, just return without adding
     const addressExists = scannedAddresses.some(item => item.address === address);
     if (addressExists) {
-      throw new Error('Address already exists');
+      return; // Silently ignore duplicates
     }
 
     const newAddress: ScannedAddress = {

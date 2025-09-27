@@ -29,17 +29,8 @@ export default function WelcomePage(): React.JSX.Element {
       setIsCreatingWallet(true);
       await createWallet();
       
-      // Show success message
-      Alert.alert(
-        'Wallet Created! 🎉',
-        'Your secure wallet has been created and is ready to use.',
-        [
-          {
-            text: 'Get Started',
-            onPress: () => router.replace('/(tabs)/'),
-          },
-        ]
-      );
+      // Navigate directly to tabs
+      router.replace('/(tabs)/');
     } catch (error) {
       Alert.alert(
         'Error',
@@ -67,38 +58,23 @@ export default function WelcomePage(): React.JSX.Element {
         <View style={styles.welcomeContent}>
           <Text style={styles.welcomeTitle}>Welcome to NoNet</Text>
           <Text style={styles.welcomeDescription}>
-            Send cryptocurrency transactions without internet connectivity using our revolutionary mesh network technology.
+            Send crypto transactions offline using mesh network technology.
           </Text>
           
           <View style={styles.featuresContainer}>
             <View style={styles.feature}>
               <Text style={styles.featureIcon}>📡</Text>
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Offline Transactions</Text>
-                <Text style={styles.featureDescription}>
-                  Send crypto without internet using Bluetooth mesh network
-                </Text>
-              </View>
+              <Text style={styles.featureTitle}>Offline Transactions</Text>
             </View>
 
             <View style={styles.feature}>
               <Text style={styles.featureIcon}>🔐</Text>
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Secure & Encrypted</Text>
-                <Text style={styles.featureDescription}>
-                  End-to-end encryption ensures your transactions are secure
-                </Text>
-              </View>
+              <Text style={styles.featureTitle}>Secure & Encrypted</Text>
             </View>
 
             <View style={styles.feature}>
               <Text style={styles.featureIcon}>🚀</Text>
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Multi-Chain Support</Text>
-                <Text style={styles.featureDescription}>
-                  Support for Hedera, Flow, Ethereum, and more blockchains
-                </Text>
-              </View>
+              <Text style={styles.featureTitle}>Multi-Chain Support</Text>
             </View>
           </View>
         </View>
@@ -121,14 +97,14 @@ export default function WelcomePage(): React.JSX.Element {
           </TouchableOpacity>
 
           <Text style={styles.disclaimer}>
-            By creating a wallet, you agree to our terms of service. Your private keys are stored securely on your device.
+            Your private keys are stored securely on your device.
           </Text>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Powered by decentralized mesh network technology
+            Powered by mesh network technology
           </Text>
         </View>
       </View>
@@ -148,8 +124,8 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
+    marginTop: 30,
+    marginBottom: 30,
   },
   logoPlaceholder: {
     width: 100,
@@ -197,49 +173,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.icon,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 40,
-    paddingHorizontal: 10,
+    lineHeight: 22,
+    marginBottom: 30,
+    paddingHorizontal: 20,
   },
   featuresContainer: {
-    gap: 20,
+    gap: 15,
   },
   feature: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
+    padding: 15,
+    borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 2,
+    elevation: 1,
   },
   featureIcon: {
-    fontSize: 24,
-    marginRight: 15,
-    marginTop: 2,
-  },
-  featureText: {
-    flex: 1,
+    fontSize: 20,
+    marginRight: 12,
   },
   featureTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.light.text,
-    marginBottom: 4,
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: Colors.light.icon,
-    lineHeight: 20,
+    flex: 1,
   },
   actionContainer: {
-    marginBottom: 20,
+    marginBottom: 10,
   },
   createWalletButton: {
     backgroundColor: Colors.light.tint,
@@ -277,7 +244,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: 'center',
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
   footerText: {
     fontSize: 12,

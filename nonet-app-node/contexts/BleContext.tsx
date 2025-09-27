@@ -9,6 +9,7 @@ import React, {
 import { Platform } from 'react-native';
 import { BleManager } from 'react-native-ble-plx';
 import BleAdvertiser from 'react-native-ble-advertiser';
+import { useNetInfo } from '@react-native-community/netinfo';
 import {
   MessageState,
   broadcastOverBle,
@@ -33,7 +34,6 @@ interface BleContextType {
   broadcastQueue: Map<number, Uint8Array[]>;
 
   // Actions
-  setHasInternet: (hasInternet: boolean) => void;
   broadcastMessage: (message: string) => Promise<void>;
   startBroadcasting: () => void;
   stopBroadcasting: () => void;
@@ -59,8 +59,11 @@ interface BleProviderProps {
 
 export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
   const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [hasInternet, setHasInternet] = useState(true);
   const [, forceRerender] = useState(0);
+
+  // Use NetInfo to get real network connectivity status
+  const netInfo = useNetInfo();
+  const hasInternet = netInfo.isConnected ?? false;
 
   // Refs for persistent state
   const managerRef = useRef<BleManager | null>(null);
@@ -73,13 +76,7 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
       chunkIndex: 0,
     }
   );
-  const hasInternetRef = useRef(hasInternet);
   const stopScannerRef = useRef<(() => void) | null>(null);
-
-  // Update internet ref when state changes
-  useEffect(() => {
-    hasInternetRef.current = hasInternet;
-  }, [hasInternet]);
 
   // Force update function for UI re-renders
   const forceUpdate = () => {
@@ -136,9 +133,9 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
 
       forceUpdate();
 
-      if (hasInternetRef.current && !entry.isAck) {
+      if (hasInternet && !entry.isAck) {
         handleApiResponse(id, fullMessage);
-      } else if (!hasInternetRef.current) {
+      } else if (!hasInternet) {
         addToBroadcastQueue(id, Array.from(entry.chunks.values()));
       }
     }
@@ -379,7 +376,6 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
     broadcastQueue: broadcastQueueRef.current,
 
     // Actions
-    setHasInternet,
     broadcastMessage,
     startBroadcasting: startMasterBroadcastLoop,
     stopBroadcasting: stopMasterBroadcastLoop,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, View, StyleSheet, ScrollView, Platform } from 'react-native';
+import { Alert, View, StyleSheet, ScrollView } from 'react-native';
 import {
   Provider as PaperProvider,
   DefaultTheme,
@@ -11,9 +11,10 @@ import {
   Paragraph,
   Badge,
   Surface,
-  Switch,
   ProgressBar,
   Chip,
+  Icon,
+  IconButton,
 } from 'react-native-paper';
 import { useBle } from '@/contexts/BleContext';
 import { MessageState } from '@/utils/bleUtils';
@@ -36,7 +37,6 @@ const MeshScreen = () => {
     isBroadcasting,
     hasInternet,
     masterState,
-    setHasInternet,
     broadcastMessage,
     startBroadcasting,
     stopBroadcasting,
@@ -80,13 +80,7 @@ const MeshScreen = () => {
   const renderReceivedMessageCard = (state: MessageState) => {
     const progress = getProgressFor(state);
     return (
-      <Card
-        key={`msg-${state.id}`}
-        style={[
-          styles.messageCard,
-          { backgroundColor: state.isAck ? '#e8f5e9' : '#fff3e0' },
-        ]}
-      >
+      <Card key={`msg-${state.id}`} style={[styles.messageCard]}>
         <Card.Content>
           <View
             style={{
@@ -95,21 +89,28 @@ const MeshScreen = () => {
               alignItems: 'center',
             }}
           >
-            <Title style={styles.messageTitle}>
-              {state.isAck ? '✅ Response (ACK)' : '✉️ Request'}
+            <Title style={[styles.messageTitle, { textAlign: 'left' }]}>
+              {state.isAck ? 'Response' : 'Request'}
             </Title>
-            <Chip compact>{`${progress.percent}%`}</Chip>
           </View>
 
           <Paragraph numberOfLines={3}>
             {state.fullMessage ||
-              (state.isComplete ? '(decoded)' : '(incomplete)')}
+              (state.isComplete ? '(Decoded)' : '(Incomplete)')}
           </Paragraph>
 
           <View style={{ marginTop: 8 }}>
-            <Text
-              style={{ marginBottom: 6 }}
-            >{`Chunks: ${progress.received}/${progress.total}`}</Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <Text>{`Chunks: ${progress.received}/${progress.total}`}</Text>
+              <View style={{ flex: 1 }} />
+              <Text>{`${progress.percent}%`}</Text>
+            </View>
             <ProgressBar
               progress={progress.percent / 100}
               style={{ height: 8, borderRadius: 6 }}
@@ -148,32 +149,58 @@ const MeshScreen = () => {
     <PaperProvider theme={theme}>
       <View style={styles.container}>
         <Surface style={styles.broadcasterSection} elevation={2}>
-          <Title style={styles.sectionTitle}>Mesh Node</Title>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Title style={styles.sectionTitle}>Mesh Node</Title>
+            <View style={styles.internetStatusContainer}>
+              <Icon
+                source={hasInternet ? 'wifi' : 'bluetooth'}
+                size={24}
+                color={hasInternet ? '#4CAF50' : '#2196F3'}
+              />
+              <Text
+                style={{
+                  marginLeft: 8,
+                  color: hasInternet ? '#4CAF50' : '#2196F3',
+                }}
+              >
+                {hasInternet ? 'Online' : 'BLE Mesh'}
+              </Text>
+            </View>
+          </View>
 
-          <View style={styles.internetSwitchContainer}>
-            <Text>Internet Status:</Text>
-            <Switch value={hasInternet} onValueChange={setHasInternet} />
-            <View style={{ width: 12 }} />
-            <Button
+          <View
+            style={{
+              marginVertical: 8,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, color: '#555' }}>
+                Currently broadcasting:
+              </Text>
+              <Paragraph style={{ fontWeight: '700', marginTop: 2 }}>
+                {isBroadcasting && currentBroadcast.text
+                  ? `🔊 ${currentBroadcast.text}`
+                  : '— not broadcasting —'}
+              </Paragraph>
+            </View>
+            <IconButton
               mode="outlined"
               onPress={() => {
                 if (isBroadcasting) stopBroadcasting();
                 else startBroadcasting();
               }}
-            >
-              {isBroadcasting ? 'Stop Broadcasting' : 'Start Broadcasting'}
-            </Button>
-          </View>
-
-          <View style={{ marginVertical: 8 }}>
-            <Text style={{ fontSize: 13, color: '#555' }}>
-              Currently broadcasting:
-            </Text>
-            <Paragraph style={{ fontWeight: '700', marginTop: 2 }}>
-              {isBroadcasting && currentBroadcast.text
-                ? `🔊 ${currentBroadcast.text}`
-                : '— not broadcasting —'}
-            </Paragraph>
+              icon={isBroadcasting ? 'pause' : 'play'}
+              contentStyle={{ flexDirection: 'row-reverse' }}
+            />
           </View>
 
           <TextInput
@@ -228,7 +255,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f4f7',
-    paddingTop: Platform.OS === 'android' ? 25 : 50,
   },
   broadcasterSection: {
     padding: 15,
@@ -243,14 +269,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   sectionTitle: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 12,
+    fontWeight: 600,
   },
   internetSwitchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  internetStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   textInput: {
     marginBottom: 10,
@@ -266,6 +297,9 @@ const styles = StyleSheet.create({
   },
   messageCard: {
     marginBottom: 10,
+    elevation: 0,
+    shadowColor: 'transparent',
+    backgroundColor: '#fff',
   },
   messageTitle: {
     fontSize: 16,

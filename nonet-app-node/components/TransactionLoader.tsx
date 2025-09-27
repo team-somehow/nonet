@@ -9,13 +9,8 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
-import {
-  Icon,
-} from 'react-native-paper';
 import { Colors } from '@/constants/theme';
 import { useWallet, TransactionData } from '@/contexts/WalletContext';
-import { useBle } from '@/contexts/BleContext';
-
 
 // Transaction Flow Steps - Easily editable constants
 const TRANSACTION_STEPS = [
@@ -89,21 +84,9 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
   transactionData,
 }) => {
   const { signTransaction, userWalletAddress } = useWallet();
-  const { broadcastMessage, getCurrentBroadcastInfo } = useBle();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
-  const [messages, setMessages] = useState<string[]>([]);
-  
-
-  // Add state for logs
-  const [logs, setLogs] = useState<string[]>([]);
-
-  // Add animation values for Bluetooth mesh
-  const bluetoothPulse = useRef(new Animated.Value(1)).current;
-  const circle1Anim = useRef(new Animated.Value(0)).current;
-  const circle2Anim = useRef(new Animated.Value(0)).current;
-  const circle3Anim = useRef(new Animated.Value(0)).current;
 
   // Animation values
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -118,129 +101,29 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
     startTransactionFlow();
   }, []);
 
-  // Function to add logs
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
-  };
-
-  // Reset animation and start Bluetooth animation
   const resetAnimation = () => {
     setCurrentStep(0);
     setIsCompleted(false);
     setLoadingMessageIndex(0);
-    setLogs([]);
     progressAnim.setValue(0);
     stepAnimations.forEach(anim => anim.setValue(0));
     pulseAnim.setValue(1);
     fadeAnim.setValue(0);
-    bluetoothPulse.setValue(1);
-    circle1Anim.setValue(0);
-    circle2Anim.setValue(0);
-    circle3Anim.setValue(0);
 
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
-
-    startBluetoothAnimation();
-  };
-
-  // Start Bluetooth animation
-  const startBluetoothAnimation = () => {
-    const heartbeatAnimation = () => {
-      Animated.sequence([
-        Animated.timing(bluetoothPulse, {
-          toValue: 1.3,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bluetoothPulse, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bluetoothPulse, {
-          toValue: 1.2,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bluetoothPulse, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        if (!isCompleted) {
-          setTimeout(heartbeatAnimation, 1000);
-        }
-      });
-    };
-
-    const meshAnimation = () => {
-      Animated.stagger(400, [
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(circle1Anim, {
-              toValue: 1,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(circle1Anim, {
-              toValue: 0,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ])
-        ),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(circle2Anim, {
-              toValue: 1,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(circle2Anim, {
-              toValue: 0,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ])
-        ),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(circle3Anim, {
-              toValue: 1,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(circle3Anim, {
-              toValue: 0,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ])
-        ),
-      ]).start();
-    };
-
-    heartbeatAnimation();
-    meshAnimation();
   };
 
   // Function to sign the transaction
   const handleTransactionSigning = async () => {
     try {
       if (!transactionData) {
-        addLog('❌ No transaction data provided');
+        console.log('❌ No transaction data provided');
         return;
       }
-
-      addLog('🔐 Starting transaction signing...');
-      addLog(`💰 Amount: ${transactionData.amount} ${transactionData.currency}`);
-      addLog(`🌐 Network: ${transactionData.chain} (ID: ${transactionData.chainId})`);
 
       // Use the user's wallet address from component level hook
 
@@ -258,14 +141,13 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         chainId: transactionData.chainId, // Use selected chain ID
       };
 
-      addLog('📝 Creating transaction payload...');
+      console.log('🔐 Signing transaction in TransactionLoader...');
       console.log('🌐 Selected chain:', transactionData.chain, 'Chain ID:', transactionData.chainId);
       console.log('💰 Selected currency:', transactionData.currency);
       console.log('📝 Transaction data:', txData);
 
       // Sign the transaction using the wallet context
       const signedTransaction = await signTransaction(txData);
-      addLog('✅ Transaction signed successfully');
 
       // Create the local transaction payload
       const transactionPayload = {
@@ -275,7 +157,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         gas: '0x' + parseInt(txData.gasLimit || '21000').toString(16),
         gasPrice: '0x' + parseInt(txData.gasPrice || '20000000000').toString(16),
         nonce: '0x' + parseInt(txData.nonce || '0').toString(16),
-        chainId: '0x' + txData?.chainId?.toString(16),
+        chainId: '0x' + txData.chainId.toString(16),
         data: txData.data || '0x',
         signature: {
           v: signedTransaction.v,
@@ -284,13 +166,20 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         }
       };
 
-      addLog('📡 Broadcasting via Bluetooth mesh...');
-      broadcastMessage(JSON.stringify(transactionPayload));
-      addLog('🚀 Transaction broadcast initiated');
-      
+      console.log('✅ SIGNED TRANSACTION RESULT:');
+      console.log('==================================');
+      console.log('Transaction Hash:', signedTransaction.transactionHash);
+      console.log('Raw Transaction:', signedTransaction.rawTransaction);
+      console.log('==================================');
+
+      console.log('📋 LOCAL TRANSACTION PAYLOAD:');
+      console.log('==================================');
+      console.log(JSON.stringify(transactionPayload, null, 2));
+      console.log('==================================');
+
+      // TODO: Send the transaction payload
 
     } catch (error) {
-      addLog(`❌ Error signing transaction: ${error}`);
       console.error('❌ Error signing transaction:', error);
     }
   };
@@ -423,17 +312,73 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
     outputRange: ['0%', '100%'],
   });
 
-  // Remove circle animations and simplify layout
   return (
     <SafeAreaView style={styles.fullPageContainer}>
-      <View style={styles.centerContainer}>
-        <Icon source="bluetooth" size={100} color={Colors.light.tint} />
-      </View>
-      <ScrollView style={styles.logsContainer}>
-        {logs.map((log, index) => (
-          <Text key={index} style={styles.logText}>{log}</Text>
-        ))}
-      </ScrollView>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        {/* Fixed Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Processing Transaction</Text>
+          {transactionData && (
+            <View style={styles.transactionInfo}>
+              <Text style={styles.transactionText}>
+                Sending {transactionData.amount} {transactionData.currency}
+              </Text>
+              <Text style={styles.transactionAddress}>
+                to {transactionData.toAddress.slice(0, 6)}...{transactionData.toAddress.slice(-4)}
+              </Text>
+              <Text style={styles.transactionChain}>
+                on {transactionData.chain}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Fixed Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+          </View>
+          <Text style={styles.progressText}>
+            Step {currentStep + 1} of {TRANSACTION_STEPS.length}
+          </Text>
+        </View>
+
+        {/* Scrollable Content */}
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Steps */}
+          <View style={styles.stepsContainer}>
+            {TRANSACTION_STEPS.map((step, index) => renderStep(step, index))}
+          </View>
+
+          {/* Loading Message */}
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingMessage}>
+              {LOADING_MESSAGES[loadingMessageIndex] || 'Processing...'}
+            </Text>
+          </View>
+
+          {/* Success State */}
+          {isCompleted && (
+            <Animated.View style={styles.successContainer}>
+              <Text style={styles.successIcon}>🎉</Text>
+              <Text style={styles.successText}>Transaction Successful!</Text>
+            </Animated.View>
+          )}
+        </ScrollView>
+
+        {/* Fixed Cancel Button */}
+        {onCancel && !isCompleted && (
+          <View style={styles.fixedFooter}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+              <Text style={styles.cancelButtonText}>Cancel Transaction</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.View>
     </SafeAreaView>
   );
 };
@@ -445,21 +390,180 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.background,
   },
-  centerContainer: {
-    flex: 2,
+  container: {
+    flex: 1,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.light.text,
+    marginBottom: 10,
+  },
+  transactionInfo: {
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    width: '100%',
+  },
+  transactionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  transactionAddress: {
+    fontSize: 14,
+    color: Colors.light.icon,
+    fontFamily: 'monospace',
+    marginTop: 2,
+  },
+  transactionChain: {
+    fontSize: 12,
+    color: Colors.light.icon,
+    marginTop: 2,
+  },
+  progressContainer: {
+    marginBottom: 25,
+    paddingHorizontal: 20,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.light.tint,
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    color: Colors.light.icon,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  stepsContainer: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+  },
+  stepContainer: {
+    flexDirection: 'row',
+    marginBottom: 25,
+    paddingHorizontal: 10,
+  },
+  stepIconContainer: {
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  stepIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
   },
-  logsContainer: {
+  stepIconActive: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  stepIconCompleted: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  stepIconText: {
+    fontSize: 22,
+  },
+  stepIconTextActive: {
+    color: 'white',
+  },
+  stepLine: {
+    width: 3,
+    height: 40,
+    backgroundColor: '#e0e0e0',
+    marginTop: 8,
+  },
+  stepLineCompleted: {
+    backgroundColor: '#4CAF50',
+  },
+  stepContent: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#999',
+    marginBottom: 4,
+  },
+  stepTitleActive: {
+    color: Colors.light.text,
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: '#bbb',
+    lineHeight: 18,
+  },
+  stepDescriptionActive: {
+    color: Colors.light.icon,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 15,
+    paddingHorizontal: 20,
+  },
+  loadingMessage: {
+    fontSize: 14,
+    color: Colors.light.tint,
+    fontStyle: 'italic',
+  },
+  fixedFooter: {
     padding: 20,
     backgroundColor: Colors.light.background,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
-  logText: {
+  cancelButton: {
+    backgroundColor: 'transparent',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.icon,
+  },
+  cancelButtonText: {
+    color: Colors.light.icon,
     fontSize: 14,
-    color: Colors.light.text,
-    marginBottom: 5,
+    fontWeight: '500',
+  },
+  successContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  successIcon: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  successText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
   },
 });

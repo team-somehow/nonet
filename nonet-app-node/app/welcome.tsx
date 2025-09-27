@@ -23,6 +23,11 @@ import {
   NeoBrutalDivider 
 } from '@/components/NeoBrutalismComponents';
 import { NeoBrutalismColors } from '@/constants/neoBrutalism';
+import { 
+  requestAllPermissions, 
+  showPermissionExplanation, 
+  showPermissionDeniedDialog 
+} from '@/utils/permissions';
 
 export default function WelcomePage(): React.JSX.Element {
   const { isLoggedIn, createWallet } = useWallet();
@@ -32,18 +37,78 @@ export default function WelcomePage(): React.JSX.Element {
   useEffect(() => {
     // Check if user already has a wallet and redirect to tabs
     if (isLoggedIn) {
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)');
     }
   }, [isLoggedIn]);
 
   const handleCreateWallet = async () => {
     try {
       setIsCreatingWallet(true);
+      
+      console.log('🔐 Starting wallet creation process...');
+      
+      // Step 1: Show permission explanation
+      const userAcceptedExplanation = await showPermissionExplanation();
+      if (!userAcceptedExplanation) {
+        console.log('❌ User declined permission explanation');
+        setIsCreatingWallet(false);
+        return;
+      }
+      
+      // Step 2: Request all permissions
+      console.log('📋 Requesting all permissions...');
+      const permissionResults = await requestAllPermissions();
+      
+      // Step 3: Handle permission results
+      if (!permissionResults.allGranted) {
+        const deniedPermissions: string[] = [];
+        if (!permissionResults.camera) deniedPermissions.push('Camera');
+        if (!permissionResults.bluetooth) deniedPermissions.push('Bluetooth');
+        
+        console.log('❌ Some permissions denied:', deniedPermissions);
+        
+        const userWantsToTryAgain = await showPermissionDeniedDialog(deniedPermissions);
+        if (userWantsToTryAgain) {
+          // Retry permission request
+          setIsCreatingWallet(false);
+          setTimeout(() => handleCreateWallet(), 100);
+          return;
+        } else {
+          // User chose to skip permissions - still create wallet but warn about limited functionality
+          Alert.alert(
+            'Limited Functionality',
+            'NoNet will work with limited functionality without all permissions. You can grant permissions later in your device settings.',
+            [{ text: 'Continue Anyway', onPress: () => proceedWithWalletCreation() }]
+          );
+          return;
+        }
+      }
+      
+      // Step 4: All permissions granted, create wallet
+      console.log('✅ All permissions granted, creating wallet...');
+      await proceedWithWalletCreation();
+      
+    } catch (error) {
+      console.error('❌ Error in wallet creation process:', error);
+      Alert.alert(
+        'Error',
+        'Failed to create wallet. Please try again.',
+        [{ text: 'OK' }]
+      );
+      setIsCreatingWallet(false);
+    }
+  };
+
+  const proceedWithWalletCreation = async () => {
+    try {
+      console.log('🔐 Creating cryptographic wallet...');
       await createWallet();
       
+      console.log('✅ Wallet created successfully, navigating to app...');
       // Navigate directly to tabs
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)');
     } catch (error) {
+      console.error('❌ Error creating wallet:', error);
       Alert.alert(
         'Error',
         'Failed to create wallet. Please try again.',

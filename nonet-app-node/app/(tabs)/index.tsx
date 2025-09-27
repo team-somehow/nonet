@@ -8,7 +8,7 @@ import {
   Alert,
   SafeAreaView,
 } from "react-native";
-import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
+import { CameraView, CameraType } from "expo-camera";
 import { router } from "expo-router";
 import { Colors } from "@/constants/theme";
 import { useWallet, ScannedAddress } from "@/contexts/WalletContext";
@@ -22,7 +22,6 @@ import {
 import { NeoBrutalismColors } from '@/constants/neoBrutalism';
 
 export default function Scan(): React.JSX.Element {
-  const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [facing, setFacing] = useState<CameraType>("back");
 
@@ -104,30 +103,8 @@ export default function Scan(): React.JSX.Element {
     </View>
   );
 
-  if (!permission) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.message}>Requesting camera permission...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.message}>
-            Camera permission is required to scan QR codes
-          </Text>
-          <TouchableOpacity style={styles.button} onPress={requestPermission}>
-            <Text style={styles.buttonText}>Grant Permission</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Camera permissions are now handled at wallet creation level
+  // If user reaches this screen, we assume permissions are granted
 
   if (isScanning) {
     return (
@@ -221,27 +198,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textTransform: "uppercase",
     letterSpacing: 1,
-  },
-  message: {
-    fontSize: 16,
-    color: NeoBrutalismColors.textPrimary,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: NeoBrutalismColors.primary,
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignSelf: "center",
-    borderWidth: 3,
-    borderColor: NeoBrutalismColors.primary,
-  },
-  buttonText: {
-    color: NeoBrutalismColors.textInverse,
-    fontSize: 16,
-    fontWeight: "700",
-    textTransform: "uppercase",
   },
   scanButton: {
     backgroundColor: NeoBrutalismColors.primary,

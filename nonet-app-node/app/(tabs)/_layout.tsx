@@ -50,7 +50,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="test"
+        name="mesh"
         options={{
           title: 'MESH',
           tabBarIcon: ({ color }) => <MaterialIcons size={28} name="device-hub" color={color} />,

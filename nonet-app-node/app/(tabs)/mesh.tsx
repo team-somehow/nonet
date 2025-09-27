@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+// App.tsx
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, View, StyleSheet, ScrollView, Platform } from 'react-native';
 import {
   Provider as PaperProvider,
@@ -11,50 +12,65 @@ import {
   Paragraph,
   Badge,
   Surface,
+  Switch,
+  ProgressBar,
+  Chip,
 } from 'react-native-paper';
 import base64 from 'react-native-base64';
 import BleAdvertiser from 'react-native-ble-advertiser';
 import { BleManager, ScanMode } from 'react-native-ble-plx';
 
-// A consistent UUID for your service. Both broadcaster and listener must use this.
+// --- Constants & Theme ---
 const MESH_SERVICE_UUID = 'f1d0c001-c9e5-4d6c-96ff-7f73f4f99c15';
 
-interface MessageState {
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: '#2196F3',
+    accent: '#FF5722',
+  },
+};
+
+type MessageState = {
+  id: number;
   totalChunks: number;
   isComplete: boolean;
-  chunks: Map<number, string>; // This is the 'data map'
-}
-/**
- * Broadcasts a single data chunk over BLE advertisement.
- * It first tries to use service data, falling back to manufacturer data for compatibility.
- * @param chunk The data payload to broadcast (max 6 bytes with current config).
- */
+  isAck: boolean;
+  chunks: Map<number, Uint8Array>;
+  fullMessage: string;
+};
+
+// --- Utilities / Mock API ---
+const mockApiRequest = async (originalMessage: string): Promise<string> => {
+  return new Promise((resolve) =>
+    setTimeout(() => resolve(`API Response for "${originalMessage}"`), 1500)
+  );
+};
+
+// --- BLE helpers (resilient) ---
 export const broadcastOverBle = async (chunk: Uint8Array): Promise<void> => {
   const payloadAsArray = Array.from(chunk);
+  try {
+    await (BleAdvertiser as any).stopBroadcast();
+  } catch {
+    /* ignore */
+  }
 
   try {
-    // Stop any previous broadcast to send a new one.
-    await (BleAdvertiser as any).stopBroadcast();
-
+    await (BleAdvertiser as any).broadcast(MESH_SERVICE_UUID, payloadAsArray, {
+      connectable: false,
+      includeDeviceName: false,
+      includeTxPowerLevel: false,
+      advertiseMode: (BleAdvertiser as any).ADVERTISE_MODE_LOW_LATENCY,
+      txPowerLevel: (BleAdvertiser as any).ADVERTISE_TX_POWER_HIGH,
+    });
+  } catch (serviceError) {
+    console.warn(
+      'Service data broadcast failed, trying manufacturer data:',
+      serviceError
+    );
     try {
-      // Preferred method: broadcast with service data.
-      await (BleAdvertiser as any).broadcast(
-        MESH_SERVICE_UUID,
-        payloadAsArray,
-        {
-          connectable: false,
-          includeDeviceName: false,
-          includeTxPowerLevel: false,
-          advertiseMode: (BleAdvertiser as any).ADVERTISE_MODE_LOW_LATENCY,
-          txPowerLevel: (BleAdvertiser as any).ADVERTISE_TX_POWER_HIGH,
-        }
-      );
-    } catch (serviceError) {
-      console.warn(
-        'Service data broadcast failed, trying manufacturer data:',
-        serviceError
-      );
-      // Fallback method: broadcast with manufacturer data.
       await (BleAdvertiser as any).broadcastManufacturerData(
         0xffff,
         payloadAsArray,
@@ -64,42 +80,120 @@ export const broadcastOverBle = async (chunk: Uint8Array): Promise<void> => {
           includeTxPowerLevel: false,
         }
       );
+    } catch (manuErr) {
+      console.error('Manufacturer broadcast also failed:', manuErr);
     }
-
-    console.log('Broadcast started successfully.');
-  } catch (error: any) {
-    console.error('BLE Broadcast Error:', error.message);
-    Alert.alert(
-      'Broadcast Error',
-      `Failed to start BLE broadcast: ${error.message}`
-    );
-    await stopBleBroadcast();
   }
 };
 
-/**
- * Stops the BLE broadcast.
- */
 export const stopBleBroadcast = async (): Promise<void> => {
   try {
     await (BleAdvertiser as any).stopBroadcast();
-    console.log('BLE Broadcast stopped.');
-  } catch (error: any) {
-    console.error('BLE Stop Broadcast Error:', error.message);
+  } catch {
+    /* ignore */
   }
 };
 
-/**
- * A helper function to convert a Base64 string to a Uint8Array.
- * @param b64 The Base64 encoded string.
- * @returns A Uint8Array.
- */
-/**
- * Listens for BLE advertisement packets and decodes them.
- * @param bleManager An instance of BleManager.
- * @param onChunkReceived A callback function invoked with the received data chunk.
- * @returns A function to stop the listener.
- */
+const base64ToUint8Array = (b64: string): Uint8Array => {
+  const byteString = base64.decode(b64);
+  return Uint8Array.from(byteString, (c) => c.charCodeAt(0));
+};
+
+// --- Protocol encoding/decoding ---
+export const encodeMessageToChunks = (
+  message: string,
+  options: { id?: number; isAck?: boolean } = {}
+): Uint8Array[] => {
+  const HEADER_SIZE = 3;
+  const DATA_PER_CHUNK = 6;
+  const MAX_PAYLOAD_SIZE = HEADER_SIZE + DATA_PER_CHUNK;
+
+  const encoder = new TextEncoder();
+  const binaryArray = encoder.encode(message);
+  const totalChunks = Math.ceil(binaryArray.length / DATA_PER_CHUNK) || 1;
+
+  if (totalChunks > 127) {
+    throw new Error('Message is too large and exceeds the 127 chunk limit.');
+  }
+
+  let uniqueId = options.id;
+  if (uniqueId === undefined) {
+    const idArray = new Uint8Array(1);
+    if (typeof crypto !== 'undefined' && (crypto as any).getRandomValues) {
+      (crypto as any).getRandomValues(idArray);
+    } else {
+      idArray[0] = Math.floor(Math.random() * 256);
+    }
+    uniqueId = idArray[0];
+  }
+
+  const isAck = options.isAck || false;
+  const createdChunks: Uint8Array[] = [];
+
+  for (let i = 0; i < totalChunks; i++) {
+    const chunkNumber = i + 1;
+    const chunkPayload = new Uint8Array(MAX_PAYLOAD_SIZE);
+    const view = new DataView(chunkPayload.buffer);
+
+    view.setUint8(0, uniqueId);
+    view.setUint8(1, totalChunks);
+
+    let chunkNumAndFlagByte = chunkNumber & 0b01111111;
+    if (isAck) {
+      chunkNumAndFlagByte |= 0b10000000;
+    }
+    view.setUint8(2, chunkNumAndFlagByte);
+
+    const dataStartIndex = i * DATA_PER_CHUNK;
+    const dataSlice = binaryArray.slice(
+      dataStartIndex,
+      dataStartIndex + DATA_PER_CHUNK
+    );
+    chunkPayload.set(dataSlice, HEADER_SIZE);
+
+    createdChunks.push(chunkPayload);
+  }
+  return createdChunks;
+};
+
+export const decodeSingleChunk = (
+  chunk: Uint8Array
+):
+  | (MessageState & {
+      chunkNumber: number;
+      data: Uint8Array;
+      decodedData: string;
+    })
+  | null => {
+  if (!chunk || chunk.length < 3) return null;
+  const view = new DataView(chunk.buffer);
+  const id = view.getUint8(0);
+  const totalChunks = view.getUint8(1);
+  const chunkNumAndFlagByte = view.getUint8(2);
+  const isAck = (chunkNumAndFlagByte & 0b10000000) !== 0;
+  const chunkNumber = chunkNumAndFlagByte & 0b01111111;
+  const data = chunk.slice(3);
+
+  const decoder = new TextDecoder();
+  const firstNullByte = data.indexOf(0);
+  const dataWithoutPadding =
+    firstNullByte === -1 ? data : data.slice(0, firstNullByte);
+  const decodedData = decoder.decode(dataWithoutPadding);
+
+  return {
+    id,
+    totalChunks,
+    isComplete: false,
+    isAck,
+    chunks: new Map<number, Uint8Array>(),
+    fullMessage: '',
+    chunkNumber,
+    data,
+    decodedData,
+  } as any;
+};
+
+// --- listenOverBle that returns the stop fn ---
 export const listenOverBle = (
   bleManager: BleManager | null,
   onChunkReceived: (chunk: Uint8Array) => void
@@ -113,23 +207,19 @@ export const listenOverBle = (
     null,
     {
       allowDuplicates: true,
-      // 👇 **OPTIMIZATION: Use LowLatency scan mode for faster discovery**
       scanMode: ScanMode.LowLatency,
     },
     (error, device) => {
-      // ... rest of your code remains the same
       if (error) {
         console.error('BLE Scan Error:', error.message);
         return;
       }
-
       if (!device) return;
 
       const serviceDataB64 = (device as any).serviceData?.[MESH_SERVICE_UUID];
       const manufacturerDataB64 = (device as any).manufacturerData;
 
       let chunk: Uint8Array | null = null;
-
       if (serviceDataB64) {
         try {
           chunk = base64ToUint8Array(serviceDataB64);
@@ -158,158 +248,96 @@ export const listenOverBle = (
   );
 
   return () => {
-    if (bleManager) {
+    try {
       bleManager.stopDeviceScan();
-      console.log('BLE Scan stopped.');
+    } catch {
+      /* ignore */
     }
+    console.log('BLE Scan stopped (stop function called).');
   };
 };
 
-// Helper function remains the same
-const base64ToUint8Array = (b64: string): Uint8Array => {
-  const byteString = base64.decode(b64);
-  return Uint8Array.from(byteString, (c) => c.charCodeAt(0));
-};
-
-export const encodeMessageToChunks = (message: string): Uint8Array[] => {
-  // --- 1. Define Constants for the new protocol ---
-  // ID (1) + Total Chunks (1) + ChunkNo/Flag (1) = 3 bytes
-  const HEADER_SIZE = 3;
-  const DATA_PER_CHUNK = 6; // Increased from 4 to 6 bytes
-  const MAX_PAYLOAD_SIZE = HEADER_SIZE + DATA_PER_CHUNK; // Still 9 bytes total
-
-  // --- 2. Encode the string message to a binary array ---
-  const encoder = new TextEncoder();
-  const binaryArray = encoder.encode(message);
-
-  // --- 3. Calculate total chunks and generate a unique ID ---
-  const totalChunks = Math.ceil(binaryArray.length / DATA_PER_CHUNK) || 1;
-
-  // Throw an error if the message is too large for our new 7-bit chunk number
-  // (2^7 - 1 = 127)
-  if (totalChunks > 127) {
-    throw new Error('Message is too large and exceeds the 127 chunk limit.');
-  }
-
-  // Generate a 1-byte (Uint8) random ID
-  const idArray = new Uint8Array(1);
-  crypto.getRandomValues(idArray);
-  const uniqueId = idArray[0];
-
-  // --- 4. Create each chunk ---
-  const createdChunks: Uint8Array[] = [];
-  for (let i = 0; i < totalChunks; i++) {
-    const chunkNumber = i + 1;
-    const chunkPayload = new Uint8Array(MAX_PAYLOAD_SIZE);
-    const view = new DataView(chunkPayload.buffer);
-
-    // -- Fill the header (3 bytes total) --
-    view.setUint8(0, uniqueId); // 1 byte: Unique ID
-    view.setUint8(1, totalChunks); // 1 byte: Total Chunks
-
-    // 1 byte: Combine Chunk Number and Flag (is_ack = 0)
-    // The first bit is the flag, the next 7 bits are the chunk number.
-    // Since is_ack is 0, we just set the chunk number.
-    view.setUint8(2, chunkNumber);
-
-    // -- Fill the data part --
-    const dataStartIndex = i * DATA_PER_CHUNK;
-    const dataEndIndex = dataStartIndex + DATA_PER_CHUNK;
-    const dataSlice = binaryArray.slice(dataStartIndex, dataEndIndex);
-    chunkPayload.set(dataSlice, HEADER_SIZE);
-
-    createdChunks.push(chunkPayload);
-  }
-
-  return createdChunks;
-};
-
-// Define the return type for clarity
-type DataPayload = {
-  id: number;
-  totalChunks: number;
-  chunkNumber: number;
-  isAck: boolean;
-  data: Uint8Array;
-  decodedData: string;
-};
-
-export const decodeSingleChunk = (chunk: Uint8Array): DataPayload | null => {
-  // The total size is 3 (header) + 6 (data) = 9 bytes
-  const EXPECTED_CHUNK_SIZE = 9;
-  const HEADER_SIZE = 3;
-
-  if (chunk.length !== EXPECTED_CHUNK_SIZE) {
-    console.error(
-      `Invalid chunk length. Expected ${EXPECTED_CHUNK_SIZE} bytes.`
-    );
-    return null;
-  }
-
-  const view = new DataView(chunk.buffer);
-
-  // --- 1. Parse the new 3-byte header ---
-  const id = view.getUint8(0); // 1 byte: Unique ID
-  const totalChunks = view.getUint8(1); // 1 byte: Total Chunks
-
-  // Extract the combined chunk number and flag from the third byte
-  const chunkNumAndFlagByte = view.getUint8(2);
-  const isAck = (chunkNumAndFlagByte & 0b10000000) !== 0; // Check the first bit
-  const chunkNumber = chunkNumAndFlagByte & 0b01111111; // Get the remaining 7 bits
-
-  // --- 2. Extract the raw data payload ---
-  const data = chunk.slice(HEADER_SIZE);
-
-  // --- 3. Decode the raw data back to a string ---
-  const decoder = new TextDecoder();
-  const firstNullByte = data.indexOf(0);
-  const dataWithoutPadding =
-    firstNullByte === -1 ? data : data.slice(0, firstNullByte);
-  const decodedData = decoder.decode(dataWithoutPadding);
-
-  return {
-    id,
-    totalChunks,
-    chunkNumber,
-    isAck,
-    data,
-    decodedData,
-  };
-};
-
-// Custom theme for better UI
-const theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: '#2196F3',
-    accent: '#FF5722',
-    background: '#f5f5f5',
-    surface: '#ffffff',
-    text: '#333333',
-    placeholder: '#999999',
-  },
-};
-
+// --- Main App ---
 const App = () => {
-  // Note: Bluetooth permissions are handled at wallet creation level
-  // If user reaches this screen, we assume all necessary permissions are granted
-  
   const [message, setMessage] = useState('');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
-  const managerRef = useRef<BleManager | null>(null);
-  const broadcastIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
+  const [hasInternet, setHasInternet] = useState(true);
+  const [, forceRerender] = useState(0);
 
-  // --- 2. Initialize the Master State using a ref ---
-  // The key is the message ID, and the value is the MessageState object.
-  const masterStateRef = useRef(new Map<number, MessageState>());
+  const managerRef = useRef<BleManager | null>(null);
+  const masterStateRef = useRef<Map<number, MessageState>>(new Map());
+  const broadcastQueueRef = useRef<Map<number, Uint8Array[]>>(new Map());
+  const masterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const broadcastCursorRef = useRef<{ queueIndex: number; chunkIndex: number }>(
+    { queueIndex: 0, chunkIndex: 0 }
+  );
+  const hasInternetRef = useRef(hasInternet);
+
+  const stopScannerRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    hasInternetRef.current = hasInternet;
+  }, [hasInternet]);
+
+  const handleIncomingChunk = (chunk: Uint8Array) => {
+    const decoded = decodeSingleChunk(chunk);
+    if (!decoded) return;
+
+    const { id, totalChunks, chunkNumber, isAck } = decoded;
+    const masterState = masterStateRef.current;
+    let entry = masterState.get(id);
+
+    if (entry && !entry.isAck && isAck) {
+      masterState.delete(id);
+      entry = undefined;
+    }
+
+    if (!entry) {
+      entry = {
+        id,
+        totalChunks,
+        isComplete: false,
+        isAck,
+        chunks: new Map<number, Uint8Array>(),
+        fullMessage: '',
+      };
+      masterState.set(id, entry);
+    }
+
+    if (entry.isComplete || entry.chunks.has(chunkNumber)) {
+      return;
+    }
+
+    entry.chunks.set(chunkNumber, chunk);
+    forceRerender((n) => n + 1);
+
+    if (entry.chunks.size === entry.totalChunks) {
+      entry.isComplete = true;
+
+      const DATA_PER_CHUNK = 6;
+      const fullBinary = new Uint8Array(entry.totalChunks * DATA_PER_CHUNK);
+      let offset = 0;
+      for (let i = 1; i <= entry.totalChunks; i++) {
+        const part = entry.chunks.get(i)!.slice(3);
+        fullBinary.set(part, offset);
+        offset += part.length;
+      }
+      const decoder = new TextDecoder();
+      const fullMessage = decoder.decode(fullBinary).replace(/\0/g, '');
+      entry.fullMessage = fullMessage;
+
+      forceRerender((n) => n + 1);
+
+      if (hasInternetRef.current && !entry.isAck) {
+        handleApiResponse(id, fullMessage);
+      } else if (!hasInternetRef.current) {
+        addToBroadcastQueue(id, Array.from(entry.chunks.values()));
+      }
+    }
+  };
 
   useEffect(() => {
     managerRef.current = new BleManager();
-
     if (Platform.OS === 'android') {
       try {
         if (BleAdvertiser && (BleAdvertiser as any).setCompanyId) {
@@ -320,290 +348,443 @@ const App = () => {
       }
     }
 
-    // --- 3. Implement the new reassembly logic in the listener ---
-    const stopListener = listenOverBle(managerRef.current, (chunk) => {
-      const decodedChunk = decodeSingleChunk(chunk);
-      if (!decodedChunk || decodedChunk.isAck) {
-        return;
-      }
-
-      const { id, totalChunks, chunkNumber, decodedData } = decodedChunk;
-      const masterState = masterStateRef.current;
-
-      // If the message is already complete, ignore all subsequent chunks for it.
-      if (masterState.get(id)?.isComplete) {
-        return;
-      }
-
-      // If this is the first packet for a new message ID, create its entry.
-      if (!masterState.has(id)) {
-        console.log(`Creating new entry in master state for message ID: ${id}`);
-        masterState.set(id, {
-          totalChunks: totalChunks,
-          isComplete: false,
-          chunks: new Map<number, string>(),
-        });
-      }
-
-      const messageEntry = masterState.get(id)!;
-
-      // Only accept and store missing packets. Ignore duplicate chunks.
-      if (messageEntry.chunks.has(chunkNumber)) {
-        return; // This chunk has already been received.
-      }
-
-      console.log(
-        `Storing chunk ${chunkNumber}/${totalChunks} for message ID: ${id}`
-      );
-      messageEntry.chunks.set(chunkNumber, decodedData);
-
-      // Check if the message is now complete.
-      if (messageEntry.chunks.size === messageEntry.totalChunks) {
-        // Mark as complete to ignore future packets for this ID.
-        messageEntry.isComplete = true;
-
-        // Log the required completion message.
-        console.log(
-          `✅ Received the complete chunked pack of ${messageEntry.totalChunks} chunks by receiver`
-        );
-
-        // Reassemble the full message in the correct order.
-        let fullMessage = '';
-        for (let i = 1; i <= messageEntry.totalChunks; i++) {
-          fullMessage += messageEntry.chunks.get(i) || '';
-        }
-
-        // Update the UI.
-        setReceivedMessages((prev) => {
-          const formattedMessage = `[${new Date().toLocaleTimeString()}] ${fullMessage}`;
-          return [...prev, formattedMessage];
-        });
-      }
-    });
+    stopScannerRef.current = listenOverBle(
+      managerRef.current,
+      handleIncomingChunk
+    );
 
     return () => {
-      stopListener();
-      if (broadcastIntervalRef.current) {
-        clearInterval(broadcastIntervalRef.current);
-      }
-      managerRef.current?.destroy();
-    };
-  }, []); // Effect runs only once on mount.
+      try {
+        stopScannerRef.current?.();
+      } catch {}
+      stopScannerRef.current = null;
 
-  // handleStartBroadcasting and handleStopBroadcasting remain unchanged.
-  const handleStartBroadcasting = () => {
-    if (!message.trim()) {
-      Alert.alert('Input Error', 'Please enter a message to broadcast.');
-      return;
-    }
-    const createdChunks = encodeMessageToChunks(message);
-    if (createdChunks.length === 0) {
-      return;
-    }
-    setIsBroadcasting(true);
-    let chunkIndex = 0;
-    if (broadcastIntervalRef.current) {
-      clearInterval(broadcastIntervalRef.current);
-    }
-    broadcastIntervalRef.current = setInterval(() => {
-      if (chunkIndex >= createdChunks.length) {
-        chunkIndex = 0;
+      if (masterIntervalRef.current) {
+        clearInterval(masterIntervalRef.current);
+        masterIntervalRef.current = null;
       }
-      broadcastOverBle(createdChunks[chunkIndex]);
+      try {
+        managerRef.current?.destroy();
+      } catch {}
+      managerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleApiResponse = async (id: number, messageText: string) => {
+    try {
+      const apiResponse = await mockApiRequest(messageText);
+      const ackChunks = encodeMessageToChunks(apiResponse, { id, isAck: true });
+
+      const ackState: MessageState = {
+        id,
+        totalChunks: ackChunks.length,
+        isComplete: true,
+        isAck: true,
+        chunks: new Map(ackChunks.map((chunk, i) => [i + 1, chunk])),
+        fullMessage: apiResponse,
+      };
+      masterStateRef.current.set(id, ackState);
+      forceRerender((n) => n + 1);
+
+      addToBroadcastQueue(id, ackChunks);
+    } catch (err) {
+      console.error('API handling error', err);
+    }
+  };
+
+  const addToBroadcastQueue = (id: number, chunks: Uint8Array[]) => {
+    broadcastQueueRef.current.set(id, chunks);
+    if (!masterIntervalRef.current) {
+      startMasterBroadcastLoop();
+    }
+  };
+
+  const startMasterBroadcastLoop = () => {
+    setIsBroadcasting(true);
+    if (masterIntervalRef.current) clearInterval(masterIntervalRef.current);
+
+    broadcastCursorRef.current = { queueIndex: 0, chunkIndex: 0 };
+
+    masterIntervalRef.current = setInterval(() => {
+      const entries = Array.from(broadcastQueueRef.current.entries());
+      if (entries.length === 0) {
+        stopMasterBroadcastLoop();
+        return;
+      }
+
+      let { queueIndex, chunkIndex } = broadcastCursorRef.current;
+      if (queueIndex >= entries.length) queueIndex = 0;
+
+      const [currentId, chunksToBroadcast] = entries[queueIndex]!;
+      if (!chunksToBroadcast || chunksToBroadcast.length === 0) {
+        broadcastQueueRef.current.delete(currentId);
+        broadcastCursorRef.current = { queueIndex: 0, chunkIndex: 0 };
+        return;
+      }
+
+      if (chunkIndex >= chunksToBroadcast.length) chunkIndex = 0;
+
+      try {
+        broadcastOverBle(chunksToBroadcast[chunkIndex]);
+      } catch (e) {
+        console.error('broadcast error', e);
+      }
+
       chunkIndex++;
+      if (chunkIndex >= chunksToBroadcast.length) {
+        chunkIndex = 0;
+        queueIndex++;
+        if (queueIndex >= entries.length) queueIndex = 0;
+      }
+
+      broadcastCursorRef.current = { queueIndex, chunkIndex };
+      forceRerender((n) => n + 1);
     }, 250);
   };
 
-  const handleStopBroadcasting = () => {
-    if (broadcastIntervalRef.current) {
-      clearInterval(broadcastIntervalRef.current);
-      broadcastIntervalRef.current = null;
+  const stopMasterBroadcastLoop = () => {
+    if (masterIntervalRef.current) {
+      clearInterval(masterIntervalRef.current);
+      masterIntervalRef.current = null;
     }
     stopBleBroadcast();
     setIsBroadcasting(false);
+    broadcastCursorRef.current = { queueIndex: 0, chunkIndex: 0 };
+    forceRerender((n) => n + 1);
   };
+
+  const handleStartUserBroadcast = () => {
+    try {
+      const chunks = encodeMessageToChunks(message, { isAck: false });
+      const id = decodeSingleChunk(chunks[0])!.id;
+
+      const newState: MessageState = {
+        id,
+        totalChunks: chunks.length,
+        isComplete: true,
+        isAck: false,
+        chunks: new Map(chunks.map((c, i) => [i + 1, c])),
+        fullMessage: message,
+      };
+
+      masterStateRef.current.set(id, newState);
+      forceRerender((n) => n + 1);
+      addToBroadcastQueue(id, chunks);
+      setMessage('');
+    } catch (err) {
+      Alert.alert(
+        'Error',
+        (err as Error).message || 'Failed to encode message'
+      );
+    }
+  };
+
+  // Clear everything & stop (single button)
+  const clearEverythingAndStop = () => {
+    if (
+      masterStateRef.current.size === 0 &&
+      broadcastQueueRef.current.size === 0 &&
+      !isBroadcasting
+    ) {
+      return;
+    }
+
+    Alert.alert(
+      'Clear Everything & Stop',
+      'This will clear received messages, clear the broadcast queue, and stop broadcasting. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear all & stop',
+          style: 'destructive',
+          onPress: async () => {
+            // --- 1. Stop all current operations ---
+            if (stopScannerRef.current) {
+              stopScannerRef.current();
+              stopScannerRef.current = null;
+            }
+            if (masterIntervalRef.current) {
+              clearInterval(masterIntervalRef.current);
+              masterIntervalRef.current = null;
+            }
+            await stopBleBroadcast();
+
+            // --- 2. Destroy the BleManager instance to clear the native cache ---
+            if (managerRef.current) {
+              managerRef.current.destroy();
+              managerRef.current = null;
+            }
+
+            // --- 3. Clear all application-level state ---
+            masterStateRef.current.clear();
+            broadcastQueueRef.current.clear();
+            setIsBroadcasting(false);
+            broadcastCursorRef.current = { queueIndex: 0, chunkIndex: 0 };
+
+            // Force a UI update to reflect the cleared state
+            forceRerender((n) => n + 1);
+
+            // --- 4. Re-initialize and restart the scanner after a short delay ---
+            setTimeout(() => {
+              try {
+                // Create a new BleManager instance
+                managerRef.current = new BleManager();
+                // Start listening again
+                stopScannerRef.current = listenOverBle(
+                  managerRef.current,
+                  handleIncomingChunk
+                );
+                console.log('BLE stack reset and scanner restarted.');
+              } catch (e) {
+                console.error('Failed to restart scanner after clear:', e);
+              }
+            }, 500); // Increased delay slightly for stability
+          },
+        },
+      ]
+    );
+  };
+
+  // UI helpers
+  const getCurrentBroadcastInfo = (): { id?: number; text?: string } => {
+    const entries = Array.from(broadcastQueueRef.current.entries());
+    if (entries.length === 0) return {};
+    let idx = broadcastCursorRef.current.queueIndex;
+    if (idx >= entries.length) idx = 0;
+    const [id] = entries[idx];
+    const state = masterStateRef.current.get(id);
+    if (!state) {
+      const chunks = entries[idx][1];
+      try {
+        const maybe = decodeSingleChunk(chunks[0]) as any;
+        return {
+          id,
+          text: maybe?.decodedData?.slice(0, 120) ?? 'Broadcasting...',
+        };
+      } catch {
+        return { id, text: 'Broadcasting...' };
+      }
+    }
+    const maxLen = 60;
+    const text =
+      state.fullMessage.length > maxLen
+        ? `${state.fullMessage.slice(0, maxLen)}...`
+        : state.fullMessage;
+    return { id: state.id, text };
+  };
+
+  const getProgressFor = (state: MessageState) => {
+    const received = state.chunks.size;
+    const total = state.totalChunks || 1;
+    const percent = Math.round((received / total) * 100);
+    return { received, total, percent };
+  };
+
+  const renderReceivedMessageCard = (state: MessageState) => {
+    const progress = getProgressFor(state);
+    return (
+      <Card
+        key={`msg-${state.id}`}
+        style={[
+          styles.messageCard,
+          { backgroundColor: state.isAck ? '#e8f5e9' : '#fff3e0' },
+        ]}
+      >
+        <Card.Content>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Title style={styles.messageTitle}>
+              {state.isAck ? '✅ Response (ACK)' : '✉️ Request'}
+            </Title>
+            <Chip compact>{`${progress.percent}%`}</Chip>
+          </View>
+
+          <Paragraph numberOfLines={3}>
+            {state.fullMessage ||
+              (state.isComplete ? '(decoded)' : '(incomplete)')}
+          </Paragraph>
+
+          <View style={{ marginTop: 8 }}>
+            <Text
+              style={{ marginBottom: 6 }}
+            >{`Chunks: ${progress.received}/${progress.total}`}</Text>
+            <ProgressBar
+              progress={progress.percent / 100}
+              style={{ height: 8, borderRadius: 6 }}
+            />
+            <View
+              style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}
+            >
+              {Array.from({ length: state.totalChunks }, (_, i) => {
+                const idx = i + 1;
+                const have = state.chunks.has(idx);
+                return (
+                  <Badge
+                    key={idx}
+                    style={[
+                      styles.chunkBadge,
+                      have ? styles.chunkHave : styles.chunkMissing,
+                    ]}
+                  >
+                    {idx}
+                  </Badge>
+                );
+              })}
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  };
+
+  const allMessages = Array.from(masterStateRef.current.values()).sort(
+    (a, b) => b.id - a.id
+  );
+  const currentBroadcast = getCurrentBroadcastInfo();
 
   return (
     <PaperProvider theme={theme}>
       <View style={styles.container}>
-        {/* Broadcaster Section */}
         <Surface style={styles.broadcasterSection} elevation={2}>
-          <Title style={styles.sectionTitle}>Broadcaster</Title>
-          <TextInput
-            mode="outlined"
-            label="Message to broadcast"
-            placeholder="Enter message to broadcast..."
-            value={message}
-            onChangeText={setMessage}
-            multiline
-            numberOfLines={4}
-            style={styles.textInput}
-          />
-          <View style={styles.buttonContainer}>
+          <Title style={styles.sectionTitle}>Mesh Node</Title>
+
+          <View style={styles.internetSwitchContainer}>
+            <Text>Internet Status:</Text>
+            <Switch value={hasInternet} onValueChange={setHasInternet} />
+            <View style={{ width: 12 }} />
             <Button
-              mode="contained"
-              onPress={handleStartBroadcasting}
-              disabled={isBroadcasting || !message.trim()}
-              style={[styles.button, styles.startButton]}
-              buttonColor={
-                isBroadcasting || !message.trim() ? '#ccc' : '#4CAF50'
-              }
-              textColor="white"
+              mode="outlined"
+              onPress={() => {
+                if (isBroadcasting) stopMasterBroadcastLoop();
+                else startMasterBroadcastLoop();
+              }}
             >
-              Start
-            </Button>
-            <Button
-              mode="contained"
-              onPress={handleStopBroadcasting}
-              disabled={!isBroadcasting}
-              style={[styles.button, styles.stopButton]}
-              buttonColor={!isBroadcasting ? '#ccc' : '#f44336'}
-              textColor="white"
-            >
-              Stop
+              {isBroadcasting ? 'Stop Broadcasting' : 'Start Broadcasting'}
             </Button>
           </View>
-          {isBroadcasting && (
-            <Card style={styles.statusContainer}>
-              <Card.Content>
-                <Paragraph style={styles.statusText}>
-                  🔴 Broadcasting: {message}
-                </Paragraph>
-              </Card.Content>
-            </Card>
-          )}
+
+          <View style={{ marginVertical: 8 }}>
+            <Text style={{ fontSize: 13, color: '#555' }}>
+              Currently broadcasting:
+            </Text>
+            <Paragraph style={{ fontWeight: '700', marginTop: 2 }}>
+              {isBroadcasting && currentBroadcast.text
+                ? `🔊 ${currentBroadcast.text}`
+                : '— not broadcasting —'}
+            </Paragraph>
+          </View>
+
+          <TextInput
+            mode="outlined"
+            label="Broadcast New Message"
+            value={message}
+            onChangeText={setMessage}
+            style={styles.textInput}
+            multiline
+          />
+          <Button
+            mode="contained"
+            onPress={handleStartUserBroadcast}
+            disabled={!message.trim()}
+            style={styles.button}
+          >
+            Broadcast Message
+          </Button>
         </Surface>
 
-        {/* Receiver Section */}
         <Surface style={styles.receiverSection} elevation={2}>
-          <Title style={styles.sectionTitle}>Receiver</Title>
-          <Card style={styles.messagesList}>
-            <ScrollView contentContainerStyle={styles.messagesScrollContent}>
-              {receivedMessages.length === 0 ? (
-                <Paragraph style={styles.placeholderText}>
-                  Listening for messages...
-                </Paragraph>
-              ) : (
-                receivedMessages.map((msg, index) => (
-                  <Card key={index} style={styles.messageItem} mode="outlined">
-                    <Card.Content>
-                      <Paragraph style={styles.messageText}>{msg}</Paragraph>
-                    </Card.Content>
-                  </Card>
-                ))
-              )}
-            </ScrollView>
-          </Card>
-          <Card style={styles.listeningIndicator} mode="outlined">
-            <Card.Content style={styles.listeningContent}>
-              <Badge visible={true} style={styles.listeningBadge}>
-                🎧
-              </Badge>
-              <Text style={styles.listeningText}>Listening for signals...</Text>
-            </Card.Content>
-          </Card>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Title style={styles.sectionTitle}>Network Messages</Title>
+            <Button mode="text" onPress={clearEverythingAndStop} compact>
+              Clear
+            </Button>
+          </View>
+
+          <ScrollView>
+            {allMessages.length === 0 ? (
+              <Paragraph style={styles.placeholderText}>
+                Listening for messages...
+              </Paragraph>
+            ) : (
+              allMessages.map((msg) => renderReceivedMessageCard(msg))
+            )}
+          </ScrollView>
         </Surface>
       </View>
     </PaperProvider>
   );
 };
 
-// Updated styles for Paper components and better layout
+// --- Styles ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f0f4f7',
+    paddingTop: Platform.OS === 'android' ? 25 : 50,
   },
   broadcasterSection: {
-    flex: 1,
-    backgroundColor: '#e3f2fd',
-    padding: 20,
+    padding: 15,
     margin: 10,
     borderRadius: 12,
-    // Fixed positioning to prevent button overlap
-    justifyContent: 'flex-start',
   },
   receiverSection: {
     flex: 1,
-    backgroundColor: '#f3e5f5',
-    padding: 20,
+    padding: 15,
     margin: 10,
+    marginTop: 0,
     borderRadius: 12,
   },
   sectionTitle: {
     textAlign: 'center',
-    marginBottom: 20,
-    color: '#333',
+    marginBottom: 12,
+  },
+  internetSwitchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   textInput: {
-    marginBottom: 20,
-    backgroundColor: 'white',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    // Fixed spacing to prevent overlap
-    paddingHorizontal: 5,
+    marginBottom: 10,
+    minHeight: 64,
   },
   button: {
-    flex: 0.47,
-    marginHorizontal: 5,
-    // Ensure buttons have proper minimum height
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-  startButton: {},
-  stopButton: {},
-  statusContainer: {
-    marginTop: 10,
-    backgroundColor: 'rgba(244, 67, 54, 0.05)',
-  },
-  statusText: {
-    color: '#f44336',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  messagesList: {
-    flex: 1,
-    backgroundColor: 'white',
-    marginBottom: 15,
-    borderRadius: 8,
-  },
-  messagesScrollContent: {
-    padding: 10,
-    flexGrow: 1,
+    paddingVertical: 6,
   },
   placeholderText: {
     textAlign: 'center',
-    color: '#999',
-    paddingTop: 20,
+    color: '#888',
+    marginTop: 20,
   },
-  messageItem: {
-    marginBottom: 8,
-    backgroundColor: '#fafafa',
+  messageCard: {
+    marginBottom: 10,
   },
-  messageText: {
-    fontSize: 14,
-    color: '#333',
+  messageTitle: {
+    fontSize: 16,
   },
-  listeningIndicator: {
-    backgroundColor: 'rgba(76, 175, 80, 0.05)',
-    borderColor: '#4CAF50',
+  chunkBadge: {
+    margin: 3,
+    paddingHorizontal: 6,
   },
-  listeningContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  chunkHave: {
+    backgroundColor: '#c8e6c9',
+    color: '#0b6623',
   },
-  listeningBadge: {
-    marginRight: 10,
-    backgroundColor: '#4CAF50',
-  },
-  listeningText: {
-    color: '#4CAF50',
-    fontSize: 14,
-    fontWeight: 'bold',
+  chunkMissing: {
+    backgroundColor: '#ffe0b2',
+    color: '#6a4a00',
   },
 });
 

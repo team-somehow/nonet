@@ -14,7 +14,8 @@ import {
   useTheme 
 } from 'react-native-paper';
 import { router } from 'expo-router';
-import { useWallet } from '@/contexts/WalletContext';
+import { useCameraPermissions } from 'expo-camera';
+import { useWallet, WalletData } from '@/contexts/WalletContext';
 import { 
   NeoBrutalButton, 
   NeoBrutalCard, 
@@ -23,27 +24,66 @@ import {
   NeoBrutalDivider 
 } from '@/components/NeoBrutalismComponents';
 import { NeoBrutalismColors } from '@/constants/neoBrutalism';
+import { requestBluetoothPermissions } from '@/utils/permissions';
 
 export default function WelcomePage(): React.JSX.Element {
   const { isLoggedIn, createWallet } = useWallet();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
   const theme = useTheme();
 
   useEffect(() => {
     // Check if user already has a wallet and redirect to tabs
     if (isLoggedIn) {
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)');
     }
   }, [isLoggedIn]);
+
+  // Callback function that gets triggered after wallet is successfully created
+  const onWalletCreated = async (walletData: WalletData): Promise<void> => {
+    try {
+      console.log('🚀 Wallet creation callback triggered for address:', walletData.address);
+      
+      // TODO: Callback for wallet creation
+      
+    } catch (error) {
+      console.error('❌ Error in wallet creation callback:', error);
+      // Don't throw - let wallet creation succeed even if API calls fail
+    }
+  };
 
   const handleCreateWallet = async () => {
     try {
       setIsCreatingWallet(true);
-      await createWallet();
       
-      // Navigate directly to tabs
-      router.replace('/(tabs)/');
+      console.log('🔐 Starting wallet creation with permission requests...');
+      
+      // 1. Request Camera Permission - Native dialog
+      console.log('📷 Requesting camera permission...');
+      const cameraResult = await requestCameraPermission();
+      console.log('Camera permission result:', cameraResult.status);
+      
+      // 2. Request Bluetooth Permissions - Native dialogs
+      console.log('📶 Requesting Bluetooth permissions...');
+      const bluetoothGranted = await requestBluetoothPermissions();
+      console.log('Bluetooth permission result:', bluetoothGranted);
+      
+      console.log('📋 Permission Summary:', {
+        camera: cameraResult.status === 'granted' ? '✅' : '❌',
+        bluetooth: bluetoothGranted ? '✅' : '❌',
+      });
+      
+      // Create wallet regardless of permission results
+      // App will work with limited functionality if permissions denied
+      console.log('🔐 Creating wallet...');
+      await createWallet(onWalletCreated);
+      
+      console.log('✅ Wallet created, navigating to app...');
+      // Navigate to main app
+      router.replace('/(tabs)');
+      
     } catch (error) {
+      console.error('❌ Error creating wallet:', error);
       Alert.alert(
         'Error',
         'Failed to create wallet. Please try again.',

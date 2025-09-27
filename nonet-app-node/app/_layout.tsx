@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { WalletProvider } from '@/contexts/WalletContext';
+import { NearbyProvider } from '@/contexts/NearbyContext';
 import { Colors } from '@/constants/theme';
 
 export const unstable_settings = {
@@ -63,7 +64,8 @@ export default function RootLayout() {
 
   return (
     <WalletProvider>
-      <ThemeProvider value={CustomLightTheme}>
+      <NearbyProvider>
+        <ThemeProvider value={CustomLightTheme}>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
@@ -105,7 +107,8 @@ export default function RootLayout() {
           />
         </Stack>
         <StatusBar style="dark" />
-      </ThemeProvider>
+        </ThemeProvider>
+      </NearbyProvider>
     </WalletProvider>
   );
 }

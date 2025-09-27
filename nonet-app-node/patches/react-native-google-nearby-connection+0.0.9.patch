@@ -1,0 +1,823 @@
+diff --git a/node_modules/react-native-google-nearby-connection/android/build.gradle b/node_modules/react-native-google-nearby-connection/android/build.gradle
+index 2fd94d5..f6628fa 100644
+--- a/node_modules/react-native-google-nearby-connection/android/build.gradle
++++ b/node_modules/react-native-google-nearby-connection/android/build.gradle
+@@ -1,12 +1,14 @@
+ apply plugin: 'com.android.library'
+ 
+ android {
+-    compileSdkVersion 26
+-    buildToolsVersion "26.0.1"
++    // === 1. SDK VERSION FIXES ===
++    compileSdkVersion rootProject.ext.compileSdkVersion ?: 36
++    // buildToolsVersion "26.0.1" <-- REMOVED
+     
+     defaultConfig {
+-        minSdkVersion 16
+-        targetSdkVersion 26
++        // Use the modern minSdk version from your root project (or default to 24)
++        minSdkVersion rootProject.ext.minSdkVersion ?: 24
++        targetSdkVersion rootProject.ext.targetSdkVersion ?: 36
+         versionCode 1
+         versionName "1.0"
+         multiDexEnabled true
+@@ -20,11 +22,14 @@ android {
+ }
+ 
+ dependencies {
+-    compile fileTree(dir: 'libs', include: ['*.jar'])
++    implementation fileTree(dir: 'libs', include: ['*.jar']) 
++    compileOnly "com.facebook.react:react-native:+" 
++    implementation 'com.google.android.gms:play-services-nearby:18.0.2'
++    implementation 'androidx.multidex:multidex:2.0.1' 
+ 
+-    // React Native
+-    provided "com.facebook.react:react-native:+"
+-    compile 'com.google.android.gms:play-services-nearby:11.8.0'
+-    compile 'com.android.support:appcompat-v7:25.3.1'
+-    compile 'com.android.support:multidex:1.0.1'
++    // 🚨 ADD THESE ANDROIDX LIBRARIES 🚨
++    implementation 'androidx.appcompat:appcompat:1.6.1'  // Needed for AppCompatActivity/Support Fragments
++    implementation 'androidx.core:core-ktx:1.12.0'      // Needed for ContextCompat, CallSuper, NonNull, etc.
++    implementation 'androidx.annotation:annotation:1.7.0' // Needed for @NonNull, @Nullable, etc.
++    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0' // Sometimes required by older modules
+ }
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/generated/source/buildConfig/debug/com/butchmarshall/reactnative/google/nearby/connection/BuildConfig.java b/node_modules/react-native-google-nearby-connection/android/build/generated/source/buildConfig/debug/com/butchmarshall/reactnative/google/nearby/connection/BuildConfig.java
+new file mode 100644
+index 0000000..d97bf92
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/generated/source/buildConfig/debug/com/butchmarshall/reactnative/google/nearby/connection/BuildConfig.java
+@@ -0,0 +1,10 @@
++/**
++ * Automatically generated file. DO NOT MODIFY
++ */
++package com.butchmarshall.reactnative.google.nearby.connection;
++
++public final class BuildConfig {
++  public static final boolean DEBUG = Boolean.parseBoolean("true");
++  public static final String LIBRARY_PACKAGE_NAME = "com.butchmarshall.reactnative.google.nearby.connection";
++  public static final String BUILD_TYPE = "debug";
++}
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml b/node_modules/react-native-google-nearby-connection/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml
+new file mode 100644
+index 0000000..b65c0cb
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.butchmarshall.reactnative.google.nearby.connection" >
++
++    <uses-sdk android:minSdkVersion="24" />
++
++    <uses-permission android:name="android.permission.INTERNET" />
++    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
++    <uses-permission android:name="android.permission.RECORD_AUDIO" />
++    <uses-permission android:name="android.permission.BLUETOOTH" />
++    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
++    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
++    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
++    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
++    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
++    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
++    <uses-permission android:name="android.permission.CAMERA" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json b/node_modules/react-native-google-nearby-connection/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json
+new file mode 100644
+index 0000000..d84f9a7
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json
+@@ -0,0 +1,18 @@
++{
++  "version": 3,
++  "artifactType": {
++    "type": "AAPT_FRIENDLY_MERGED_MANIFESTS",
++    "kind": "Directory"
++  },
++  "applicationId": "com.butchmarshall.reactnative.google.nearby.connection",
++  "variantName": "debug",
++  "elements": [
++    {
++      "type": "SINGLE",
++      "filters": [],
++      "attributes": [],
++      "outputFile": "AndroidManifest.xml"
++    }
++  ],
++  "elementType": "File"
++}
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties b/node_modules/react-native-google-nearby-connection/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+new file mode 100644
+index 0000000..1211b1e
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+@@ -0,0 +1,6 @@
++aarFormatVersion=1.0
++aarMetadataVersion=1.0
++minCompileSdk=1
++minCompileSdkExtension=0
++minAndroidGradlePluginVersion=1.0.0
++coreLibraryDesugaringEnabled=false
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json b/node_modules/react-native-google-nearby-connection/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+new file mode 100644
+index 0000000..9e26dfe
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+@@ -0,0 +1 @@
++{}
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar b/node_modules/react-native-google-nearby-connection/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar
+new file mode 100644
+index 0000000..218e492
+Binary files /dev/null and b/node_modules/react-native-google-nearby-connection/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar differ
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt b/node_modules/react-native-google-nearby-connection/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt
+new file mode 100644
+index 0000000..a9551e5
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt
+@@ -0,0 +1 @@
++int string app_name 0x0
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties b/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+new file mode 100644
+index 0000000..db65b9f
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Sat Sep 27 15:04:15 IST 2025
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/merged.dir/values/values.xml b/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/merged.dir/values/values.xml
+new file mode 100644
+index 0000000..884329f
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/merged.dir/values/values.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="app_name">react-native-google-nearby-connection</string>
++</resources>
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml b/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+new file mode 100644
+index 0000000..9b72334
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/res"><file path="/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/res/values/strings.xml" qualifiers=""><string name="app_name">react-native-google-nearby-connection</string></file></source></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug" generated-set="debug$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/build/generated/res/resValues/debug"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/build/generated/res/resValues/debug"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt b/node_modules/react-native-google-nearby-connection/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+new file mode 100644
+index 0000000..34ca0ec
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+@@ -0,0 +1,3 @@
++R_DEF: Internal format may change without notice
++local
++string app_name
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt b/node_modules/react-native-google-nearby-connection/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+new file mode 100644
+index 0000000..9b26250
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+@@ -0,0 +1,41 @@
++1<?xml version="1.0" encoding="utf-8"?>
++2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++3    package="com.butchmarshall.reactnative.google.nearby.connection" >
++4
++5    <uses-sdk android:minSdkVersion="24" />
++6
++7    <uses-permission android:name="android.permission.INTERNET" />
++7-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:4:5-67
++7-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:4:22-64
++8    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
++8-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:5:5-77
++8-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:5:22-75
++9    <uses-permission android:name="android.permission.RECORD_AUDIO" />
++9-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:6:5-71
++9-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:6:22-68
++10    <uses-permission android:name="android.permission.BLUETOOTH" />
++10-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:7:5-68
++10-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:7:22-65
++11    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
++11-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:8:5-74
++11-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:8:22-71
++12    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
++12-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:9:5-76
++12-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:9:22-73
++13    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
++13-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:10:5-76
++13-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:10:22-73
++14    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
++14-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:11:5-81
++14-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:11:22-78
++15    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
++15-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:12:5-80
++15-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:12:22-77
++16    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
++16-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:13:5-81
++16-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:13:22-78
++17    <uses-permission android:name="android.permission.CAMERA" />
++17-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:14:5-65
++17-->/Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:14:22-62
++18
++19</manifest>
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml b/node_modules/react-native-google-nearby-connection/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml
+new file mode 100644
+index 0000000..b65c0cb
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.butchmarshall.reactnative.google.nearby.connection" >
++
++    <uses-sdk android:minSdkVersion="24" />
++
++    <uses-permission android:name="android.permission.INTERNET" />
++    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
++    <uses-permission android:name="android.permission.RECORD_AUDIO" />
++    <uses-permission android:name="android.permission.BLUETOOTH" />
++    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
++    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
++    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
++    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
++    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
++    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
++    <uses-permission android:name="android.permission.CAMERA" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json b/node_modules/react-native-google-nearby-connection/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
+new file mode 100644
+index 0000000..0637a08
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
+@@ -0,0 +1 @@
++[]
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt b/node_modules/react-native-google-nearby-connection/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+new file mode 100644
+index 0000000..08f4ebe
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+@@ -0,0 +1 @@
++0 Warning/Error
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/packaged_res/debug/packageDebugResources/values/values.xml b/node_modules/react-native-google-nearby-connection/android/build/intermediates/packaged_res/debug/packageDebugResources/values/values.xml
+new file mode 100644
+index 0000000..884329f
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/packaged_res/debug/packageDebugResources/values/values.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="app_name">react-native-google-nearby-connection</string>
++</resources>
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt b/node_modules/react-native-google-nearby-connection/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+new file mode 100644
+index 0000000..5f7f776
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+@@ -0,0 +1,2 @@
++com.butchmarshall.reactnative.google.nearby.connection
++string app_name
+diff --git a/node_modules/react-native-google-nearby-connection/android/build/outputs/logs/manifest-merger-debug-report.txt b/node_modules/react-native-google-nearby-connection/android/build/outputs/logs/manifest-merger-debug-report.txt
+new file mode 100644
+index 0000000..c1b9353
+--- /dev/null
++++ b/node_modules/react-native-google-nearby-connection/android/build/outputs/logs/manifest-merger-debug-report.txt
+@@ -0,0 +1,61 @@
++-- Merging decision tree log ---
++manifest
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:1:1-15:12
++INJECTED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:1:1-15:12
++	package
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:1:11-75
++		INJECTED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml
++	xmlns:android
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:2:11-69
++uses-permission#android.permission.INTERNET
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:4:5-67
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:4:22-64
++uses-permission#android.permission.SYSTEM_ALERT_WINDOW
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:5:5-77
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:5:22-75
++uses-permission#android.permission.RECORD_AUDIO
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:6:5-71
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:6:22-68
++uses-permission#android.permission.BLUETOOTH
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:7:5-68
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:7:22-65
++uses-permission#android.permission.BLUETOOTH_ADMIN
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:8:5-74
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:8:22-71
++uses-permission#android.permission.ACCESS_WIFI_STATE
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:9:5-76
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:9:22-73
++uses-permission#android.permission.CHANGE_WIFI_STATE
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:10:5-76
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:10:22-73
++uses-permission#android.permission.ACCESS_COARSE_LOCATION
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:11:5-81
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:11:22-78
++uses-permission#android.permission.READ_EXTERNAL_STORAGE
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:12:5-80
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:12:22-77
++uses-permission#android.permission.WRITE_EXTERNAL_STORAGE
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:13:5-81
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:13:22-78
++uses-permission#android.permission.CAMERA
++ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:14:5-65
++	android:name
++		ADDED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml:14:22-62
++uses-sdk
++INJECTED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
++INJECTED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml
++INJECTED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml
++	android:targetSdkVersion
++		INJECTED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml
++	android:minSdkVersion
++		INJECTED from /Users/vinay/Desktop/Ongoing/raw_rn_app/nonet-app-node/node_modules/react-native-google-nearby-connection/android/src/main/AndroidManifest.xml
+diff --git a/node_modules/react-native-google-nearby-connection/android/gradle.properties b/node_modules/react-native-google-nearby-connection/android/gradle.properties
+index 1fd964e..e77af9f 100644
+--- a/node_modules/react-native-google-nearby-connection/android/gradle.properties
++++ b/node_modules/react-native-google-nearby-connection/android/gradle.properties
+@@ -18,3 +18,5 @@
+ # org.gradle.parallel=true
+ 
+ android.useDeprecatedNdk=true
++android.useAndroidX=true
++android.enableJetifier=true
+\ No newline at end of file
+diff --git a/node_modules/react-native-google-nearby-connection/android/src/main/java/com/butchmarshall/reactnative/google/nearby/connection/NearbyConnectionModule.java b/node_modules/react-native-google-nearby-connection/android/src/main/java/com/butchmarshall/reactnative/google/nearby/connection/NearbyConnectionModule.java
+index c4090f5..868184c 100644
+--- a/node_modules/react-native-google-nearby-connection/android/src/main/java/com/butchmarshall/reactnative/google/nearby/connection/NearbyConnectionModule.java
++++ b/node_modules/react-native-google-nearby-connection/android/src/main/java/com/butchmarshall/reactnative/google/nearby/connection/NearbyConnectionModule.java
+@@ -15,8 +15,7 @@ import com.facebook.react.bridge.Arguments;
+ import com.facebook.react.bridge.Callback;
+ import com.facebook.react.bridge.Promise;
+ import com.facebook.react.bridge.PromiseImpl;
+-import com.facebook.react.bridge.ReactContextBaseJavaModule;
+-import com.facebook.react.bridge.Callback;
++import com.facebook.react.bridge.ReactContextBaseJavaModule; // FIX: Added import
+ import com.facebook.react.bridge.ReadableMap;
+ import com.facebook.react.bridge.WritableMap;
+ import com.facebook.react.bridge.WritableArray;
+@@ -32,7 +31,6 @@ import android.net.Uri;
+ import android.content.Intent;
+ import android.content.Context;
+ import android.content.BroadcastReceiver;
+-import android.content.Intent;
+ import android.content.IntentFilter;
+ import android.content.pm.PackageManager;
+ import android.content.pm.ApplicationInfo;
+@@ -40,21 +38,31 @@ import android.content.pm.ApplicationInfo;
+ import android.os.Bundle;
+ import android.os.ParcelFileDescriptor;
+ import android.os.Build;
+-import android.os.Bundle;
+ import android.os.Handler;
+ import android.os.Looper;
+ 
+-import android.support.annotation.CallSuper;
+-import android.support.annotation.NonNull;
+-import android.support.annotation.Nullable;
+-import android.support.annotation.UiThread;
+-import android.support.annotation.WorkerThread;
+-import android.support.v4.content.ContextCompat;
+-import android.support.v4.app.ActivityCompat;
+-import android.support.v4.util.SimpleArrayMap;
+-import android.support.v7.app.AppCompatActivity;
++// === ANDROIDX FIXES (Replaces android.support.*) ===
++import androidx.annotation.CallSuper;
++import androidx.annotation.NonNull;
++import androidx.annotation.Nullable;
++import androidx.annotation.UiThread;
++import androidx.annotation.WorkerThread;
++import androidx.core.content.ContextCompat;
++import androidx.core.app.ActivityCompat;
++import androidx.collection.SimpleArrayMap;
++import androidx.appcompat.app.AppCompatActivity;
++// =================================================
++
+ import android.util.Log;
+ import android.widget.Toast;
++
++// === MISSING JAVA.UTIL AND NEARBY IMPORTS ===
++import java.util.Map;       // FIX: Added import
++import java.util.HashMap;   // FIX: Added import
++import com.google.android.gms.nearby.connection.ConnectionsClient; // FIX: Added import
++import com.google.android.gms.nearby.connection.Payload;           // FIX: Added import
++// ============================================
++
+ import com.google.android.gms.common.api.Status;
+ import com.google.android.gms.common.api.ApiException;
+ import com.google.android.gms.nearby.Nearby;
+@@ -62,22 +70,18 @@ import com.google.android.gms.nearby.connection.AdvertisingOptions;
+ import com.google.android.gms.nearby.connection.ConnectionInfo;
+ import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
+ import com.google.android.gms.nearby.connection.ConnectionResolution;
+-import com.google.android.gms.nearby.connection.ConnectionsClient;
+ import com.google.android.gms.nearby.connection.ConnectionsStatusCodes;
+ import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
+ import com.google.android.gms.nearby.connection.DiscoveryOptions;
+ import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
+-import com.google.android.gms.nearby.connection.Payload;
+ import com.google.android.gms.nearby.connection.PayloadCallback;
+ import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
+ import com.google.android.gms.nearby.connection.Strategy;
+ import com.google.android.gms.tasks.OnFailureListener;
+ import com.google.android.gms.tasks.OnSuccessListener;
+ import java.util.ArrayList;
+-import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.Locale;
+-import java.util.Map;
+ import java.util.Set;
+ 
+ import org.json.JSONArray;
+@@ -85,12 +89,6 @@ import org.json.JSONException;
+ import org.json.JSONObject;
+ 
+ import java.io.*;
+-/*import java.io.ByteArrayOutputStream;
+-import java.io.File;
+-import java.io.FileInputStream;
+-import java.io.FileNotFoundException;
+-import java.io.IOException;
+-import java.io.InputStream;*/
+ import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.List;
+@@ -267,10 +265,10 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		final EndpointDiscoveryCallback mEndpointDiscoveryCallback = new EndpointDiscoveryCallback() {
+ 			@Override
+ 			public void onEndpointFound(String endpointId, DiscoveredEndpointInfo info) {
+-                logD(
+-                    String.format(
+-                        "onEndpointFound(endpointId=%s, serviceId=%s, endpointName=%s)",
+-                        endpointId, info.getServiceId(), info.getEndpointName()));
++                logD(
++                    String.format(
++                        "onEndpointFound(endpointId=%s, serviceId=%s, endpointName=%s)",
++                        endpointId, info.getServiceId(), info.getEndpointName()));
+ 
+ 				Endpoint existingEndpoint = mEndpoints.get(serviceId+"_"+endpointId);
+ 
+@@ -293,14 +291,14 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		return mEndpointDiscoveryCallback;
+ 	}
+ 
+-    public NearbyConnectionModule(ReactApplicationContext reactContext) {
+-        super(reactContext);
++    public NearbyConnectionModule(ReactApplicationContext reactContext) {
++        super(reactContext);
+ 		this.reactContext = reactContext;
+ 
+ 		onResume();
+ 
+ 		setLifecycleListeners();
+-    }
++    }
+ 
+ 	private void onResume() {
+ 		registerAdvertisingStartingHandler();
+@@ -356,28 +354,28 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		}
+ 	}
+ 
+-    private void setLifecycleListeners() {
++    private void setLifecycleListeners() {
+ 
+-        this.reactContext.addLifecycleEventListener(new LifecycleEventListener() {
+-            @Override
+-            public void onHostResume() {
+-                logW("onHostResume");
+-                onResume();
+-            }
++        this.reactContext.addLifecycleEventListener(new LifecycleEventListener() {
++            @Override
++            public void onHostResume() {
++                logW("onHostResume");
++                onResume();
++            }
+ 
+-            @Override
+-            public void onHostPause() {
+-                logW("onHostPause");
+-                onPause();
+-            }
++            @Override
++            public void onHostPause() {
++                logW("onHostPause");
++                onPause();
++            }
+ 
+-            @Override
+-            public void onHostDestroy() {
++            @Override
++            public void onHostDestroy() {
+ 				logW("onHostDestroy");
+-                onDestroy();
+-            }
+-        });
+-    }
++                onDestroy();
++            }
++        });
++    }
+ 
+ 	/** Called when our Activity is first created. */
+ 	protected ConnectionsClient getConnectionsClientSingleton(final String serviceId) {
+@@ -394,19 +392,20 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		return mConnectionsClient;
+ 	}
+ 
+-    @Override
+-    public String getName() {
+-        return "NearbyConnection";
+-    }
+-
+-    @Override
+-    public void onNewIntent(Intent intent) {
+-    }
++    @Override
++    public String getName() {
++        return "NearbyConnection";
++    }
+ 
+-    @Override
+-    public void onActivityResult(Activity activity, final int requestCode, final int resultCode, final Intent data) {
++    @Override
++    public void onNewIntent(Intent intent) {
++        // FIX: Required implementation for ActivityEventListener
++    }
+ 
+-    }
++    @Override
++    public void onActivityResult(Activity activity, final int requestCode, final int resultCode, final Intent data) {
++        // FIX: Required implementation for ActivityEventListener
++    }
+ 
+ 	/**
+ 	 * Get all the payloads received by this device
+@@ -492,11 +491,11 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 
+ 		final Activity activity = getCurrentActivity();
+ 		final ConnectionsClient clientSingleton = getConnectionsClientSingleton(serviceId);
+-		final AdvertisingOptions advertisingOptions =  new AdvertisingOptions(finalStrategy);
++		final AdvertisingOptions advertisingOptions =  new AdvertisingOptions(finalStrategy);
+ 
+-        permissionsCheck(activity, Arrays.asList(getRequiredPermissions()), new Callable<Void>() {
+-            @Override
+-            public Void call() throws Exception {
++        permissionsCheck(activity, Arrays.asList(getRequiredPermissions()), new Callable<Void>() {
++            @Override
++            public Void call() throws Exception {
+ 				clientSingleton
+ 					.startAdvertising(
+ 						endpointName,
+@@ -526,9 +525,9 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 						}
+ 					);
+ 
+-                return null;
+-            }
+-        });
++                return null;
++            }
++        });
+ 	}
+ 
+ 	/** Stops discovery. */
+@@ -565,9 +564,9 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		final ConnectionsClient clientSingleton = getConnectionsClientSingleton(serviceId);
+ 		final DiscoveryOptions discoveryOptions = new DiscoveryOptions(finalStrategy);
+ 
+-        permissionsCheck(activity, Arrays.asList(getRequiredPermissions()), new Callable<Void>() {
+-            @Override
+-            public Void call() throws Exception {
++        permissionsCheck(activity, Arrays.asList(getRequiredPermissions()), new Callable<Void>() {
++            @Override
++            public Void call() throws Exception {
+ 				clientSingleton.startDiscovery(
+ 					serviceId,
+ 					getEndpointDiscoveryCallback(serviceId),
+@@ -593,9 +592,9 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 					}
+ 				);
+ 
+-                return null;
+-            }
+-        });
++                return null;
++            }
++        });
+ 	}
+ 
+ 	/** Stops discovery. */
+@@ -1062,7 +1061,7 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 	}
+ 
+ 	/**
+-	 * Called when disconnected from an endpoint 
++	 * Called when disconnected from an endpoint 
+ 	 */
+ 	private void disconnectedFromEndpoint(final String serviceId, final String endpointId) {
+ 		final Endpoint endpoint = mEndpoints.get(serviceId+"_"+endpointId);
+@@ -1114,7 +1113,7 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 	}
+ 
+ 	/**
+-	 * Called when connected to a nearby advertiser 
++	 * Called when connected to a nearby advertiser 
+ 	 */
+ 	private void connectedToEndpoint(final String serviceId, final String endpointId) {
+ 		final Endpoint endpoint = mEndpoints.get(serviceId+"_"+endpointId);
+@@ -1262,14 +1261,14 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 
+ 	/**
+ 	 * Called when a remote endpoint is discovered.
+-     */
++     */
+ 	private void onEndpointDiscovered(final String serviceId, final String endpointId) {
+ 		final Endpoint endpoint = mEndpoints.get(serviceId+"_"+endpointId);
+ 
+ 		String endpointName = endpoint.getName();
+ 
+ 		// We found an advertiser!
+-		// stopDiscovering(serviceId); - should we actually stop discovering?  Maybe more peeps!
++		// stopDiscovering(serviceId); - should we actually stop discovering?  Maybe more peeps!
+ 
+ 		// Broadcast endpoint discovered
+ 		Intent i = new Intent("com.butchmarshall.reactnative.google.nearby.connection.EndPointDiscovered");
+@@ -1386,7 +1385,7 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 
+ 			sendPayload(serviceId, endpointId, filePayload);
+ 		}
+-		catch (FileNotFoundException e)   {
++		catch (FileNotFoundException e)   {
+ 			logW("sendFile() failed.", e);
+ 		}
+ 		catch(IOException e) {
+@@ -1494,8 +1493,8 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		final Activity activity = getCurrentActivity();
+ 
+ 		permissionsCheck(activity, Arrays.asList(getRequiredStoragePermissions()), new Callable<Void>() {
+-            @Override
+-            public Void call() throws Exception {
++            @Override
++            public Void call() throws Exception {
+ 				File payloadFile = payload.asFile().asJavaFile();
+ 				if (payloadFile == null) {
+ 					logV("Cannot convert to file.");
+@@ -1533,8 +1532,8 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		final Activity activity = getCurrentActivity();
+ 
+ 		permissionsCheck(activity, Arrays.asList(getRequiredAudioPermissions()), new Callable<Void>() {
+-            @Override
+-            public Void call() throws Exception {
++            @Override
++            public Void call() throws Exception {
+ 				try {
+ 					ParcelFileDescriptor[] payloadPipe = ParcelFileDescriptor.createPipe();
+ 
+@@ -1584,7 +1583,7 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		Payload payload = mReceivedPayloads.get(serviceId+"_"+endpointId+"_"+payloadId);
+ 
+ 		if (payload.getType() != Payload.Type.STREAM) {
+-			logV("startPlayingAudioStream from service "+serviceId+" and endpoint " + endpointId +" and payload "+payloadId+" failure.  Not a stream.");
++			logV("startPlayingAudioStream from service "+serviceId+" and endpoint " + endpointId +" and payload "+payloadId+" failure.  Not a stream.");
+ 			return;
+ 		}
+ 		final Activity activity = getCurrentActivity();
+@@ -1668,51 +1667,51 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 		return true;
+ 	}
+ 
+-    private void permissionsCheck(final Activity activity, final List<String> requiredPermissions, final Callable<Void> callback) {
++    private void permissionsCheck(final Activity activity, final List<String> requiredPermissions, final Callable<Void> callback) {
+ 
+-        List<String> missingPermissions = new ArrayList<>();
++        List<String> missingPermissions = new ArrayList<>();
+ 
+-        for (String permission : requiredPermissions) {
+-            int status = ActivityCompat.checkSelfPermission(activity, permission);
+-            if (status != PackageManager.PERMISSION_GRANTED) {
+-                missingPermissions.add(permission);
+-            }
+-        }
++        for (String permission : requiredPermissions) {
++            int status = ActivityCompat.checkSelfPermission(activity, permission);
++            if (status != PackageManager.PERMISSION_GRANTED) {
++                missingPermissions.add(permission);
++            }
++        }
+ 
+-        if (!missingPermissions.isEmpty()) {
+-            ((PermissionAwareActivity) activity).requestPermissions(missingPermissions.toArray(new String[missingPermissions.size()]), 1, new PermissionListener() {
++        if (!missingPermissions.isEmpty()) {
++            ((PermissionAwareActivity) activity).requestPermissions(missingPermissions.toArray(new String[missingPermissions.size()]), 1, new PermissionListener() {
+ 
+-                @Override
+-                public boolean onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+-                    if (requestCode == 1) {
++                @Override
++                public boolean onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
++                    if (requestCode == 1) {
+ 
+-                        for (int grantResult : grantResults) {
+-                            if (grantResult == PackageManager.PERMISSION_DENIED) {
+-                                return true;
+-                            }
+-                        }
++                        for (int grantResult : grantResults) {
++                            if (grantResult == PackageManager.PERMISSION_DENIED) {
++                                return true;
++                            }
++                        }
+ 
+-                        try {
+-                            callback.call();
+-                        } catch (Exception e) {
++                        try {
++                            callback.call();
++                        } catch (Exception e) {
+ 							logV("permissionsCheck error.");
+-                        }
+-                    }
++                        }
++                    }
+ 
+-                    return true;
+-                }
+-            });
++                    return true;
++                }
++            });
+ 
+-            return;
+-        }
++            return;
++        }
+ 
+-        // all permissions granted
+-        try {
+-            callback.call();
+-        } catch (Exception e) {
++        // all permissions granted
++        try {
++            callback.call();
++        } catch (Exception e) {
+ 			logV("permissionsCheck error.");
+-        }
+-    }
++        }
++    }
+ 
+ 	/**
+ 	 * Sends a {@link Payload} to all currently connected endpoints.
+@@ -1780,13 +1779,13 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 	 * @return A readable String. eg. [404]File not found.
+ 	 */
+ 	private static String statusToString(Status status) {
+-	  return String.format(
+-		  Locale.US,
+-		  "[%d]%s",
+-		  status.getStatusCode(),
+-		  status.getStatusMessage() != null
+-			  ? status.getStatusMessage()
+-			  : ConnectionsStatusCodes.getStatusCodeString(status.getStatusCode()));
++	  return String.format(
++		  Locale.US,
++		  "[%d]%s",
++		  status.getStatusCode(),
++		  status.getStatusMessage() != null
++			  ? status.getStatusMessage()
++			  : ConnectionsStatusCodes.getStatusCodeString(status.getStatusCode()));
+ 	}
+ 	
+ 	@CallSuper
+@@ -1887,7 +1886,7 @@ public class NearbyConnectionModule extends ReactContextBaseJavaModule implement
+ 
+ 		@NonNull
+ 		public String getName() {
+-		  return name;
++		  return name;
+ 		}
+ 
+ 		@Override

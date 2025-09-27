@@ -37,6 +37,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <MaterialIcons size={24} name="send" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="nearby"
+        options={{
+          title: 'Nearby',
+          tabBarIcon: ({ color }) => <MaterialIcons size={24} name="bluetooth" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

@@ -23,7 +23,6 @@ import { NeoBrutalismColors } from '@/constants/neoBrutalism';
 import { useBle } from "@/contexts/BleContext";
 
 export default function Scan(): React.JSX.Element {
-  const {stopBroadcasting} = useBle();
   const [isScanning, setIsScanning] = useState(false);
   const [facing, setFacing] = useState<CameraType>("back");
 
@@ -77,9 +76,6 @@ export default function Scan(): React.JSX.Element {
     );
   };
 
-  useEffect(()=>{
-    stopBroadcasting();
-  },[])
 
   const renderAddressItem = ({ item }: { item: ScannedAddress }) => (
     <View style={styles.addressItem}>

@@ -19,7 +19,6 @@ import QRCode from 'react-native-qrcode-svg';
 import { useBle } from '@/contexts/BleContext';
 
 export default function TransactionSuccessPage(): React.JSX.Element {
-  const { stopBroadcasting } = useBle();
   const theme = useTheme();
   const { 
     amount, 
@@ -53,10 +52,6 @@ export default function TransactionSuccessPage(): React.JSX.Element {
     // This would normally be the actual signature from the transaction
     return `0x${hash.slice(2, 34)}...${hash.slice(-32)}`;
   };
-
-  useEffect(()=>{
-    stopBroadcasting();
-  },[])
 
   
   return (

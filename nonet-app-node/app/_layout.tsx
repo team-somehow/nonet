@@ -7,7 +7,7 @@ import { WalletProvider } from '@/contexts/WalletContext';
 import { Colors } from '@/constants/theme';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: 'index',
 };
 
 // Custom light theme
@@ -29,6 +29,8 @@ export default function RootLayout() {
     <WalletProvider>
       <ThemeProvider value={CustomLightTheme}>
         <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="welcome" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           <Stack.Screen 

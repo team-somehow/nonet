@@ -1,24 +1,15 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, TextInput } from "react-native";
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '@/constants/theme';
 import { useWallet } from '@/contexts/WalletContext';
 
 export default function Show(): React.JSX.Element {
-  const { userWalletAddress, isLoggedIn, createWallet, walletData } = useWallet();
+  const { userWalletAddress, isLoggedIn, walletData } = useWallet();
   const [customAddress, setCustomAddress] = useState<string>('');
   
   // Use user's wallet address if logged in, otherwise use custom address
   const displayAddress = userWalletAddress || customAddress || '0x742d35Cc6634C0532925a3b8D404d0C8b7b8E5c2';
-
-  const handleCreateWallet = async () => {
-    try {
-      await createWallet();
-      Alert.alert("Success", "New wallet created successfully!");
-    } catch (error) {
-      Alert.alert("Error", "Failed to create wallet");
-    }
-  };
 
   const generateRandomAddress = () => {
     // Generate a mock Web3 wallet address for demonstration
@@ -70,19 +61,13 @@ export default function Show(): React.JSX.Element {
         )}
       </View>
 
-      <View style={styles.buttonContainer}>
-        {!isLoggedIn && (
-          <TouchableOpacity style={styles.createWalletButton} onPress={handleCreateWallet}>
-            <Text style={styles.buttonText}>Create Wallet</Text>
-          </TouchableOpacity>
-        )}
-        
-        {!isLoggedIn && (
+      {!isLoggedIn && (
+        <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.generateButton} onPress={generateRandomAddress}>
             <Text style={styles.buttonText}>Generate Random Address</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -165,13 +150,6 @@ const styles = StyleSheet.create({
   buttonContainer: {
     width: '100%',
     gap: 15,
-  },
-  createWalletButton: {
-    backgroundColor: Colors.light.tint,
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
   },
   generateButton: {
     backgroundColor: '#6B7280',

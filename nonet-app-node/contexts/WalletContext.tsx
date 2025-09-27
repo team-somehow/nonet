@@ -26,6 +26,7 @@ interface WalletContextType {
   createWallet: () => Promise<WalletData>;
   loadWallet: () => Promise<void>;
   clearWallet: () => Promise<void>;
+  logout: () => Promise<void>;
   
   // Scanned addresses functions
   addScannedAddress: (address: string) => void;
@@ -129,6 +130,19 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
 
+  // Logout user (clear wallet and scanned addresses)
+  const logout = async (): Promise<void> => {
+    try {
+      await AsyncStorage.multiRemove([STORAGE_KEYS.WALLET_DATA, STORAGE_KEYS.SCANNED_ADDRESSES]);
+      setWalletData(null);
+      setUserWalletAddress(null);
+      setIsLoggedIn(false);
+      setScannedAddresses([]);
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
   // Load scanned addresses from storage
   const loadScannedAddresses = async (): Promise<void> => {
     try {
@@ -199,6 +213,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     createWallet,
     loadWallet,
     clearWallet,
+    logout,
     
     // Scanned addresses functions
     addScannedAddress,

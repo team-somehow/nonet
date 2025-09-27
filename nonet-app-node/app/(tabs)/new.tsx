@@ -273,11 +273,20 @@ const App = () => {
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
   const managerRef = useRef<BleManager | null>(null);
+  const broadcastIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
+  const reassemblyBufferRef = useRef<
+    Record<number, { totalChunks: number; chunks: Map<number, string> }>
+  >({});
+
+  // --- MODIFICATION 1: Add a ref to track IDs of completed messages ---
+  // A Set is efficient for checking if an ID has already been seen.
+  const receivedMessageIDsRef = useRef(new Set<number>());
 
   useEffect(() => {
     managerRef.current = new BleManager();
 
-    // Set a default company ID for the advertiser library.
     if (Platform.OS === 'android') {
       try {
         if (BleAdvertiser && (BleAdvertiser as any).setCompanyId) {
@@ -290,51 +299,93 @@ const App = () => {
 
     const stopListener = listenOverBle(managerRef.current, (chunk) => {
       const decodedChunk = decodeSingleChunk(chunk);
-      if (decodedChunk) {
-        console.log('Received data:', decodedChunk.decodedData);
-        // Append new messages to the list, ensuring no duplicates from rapid scans
+      if (!decodedChunk || decodedChunk.isAck) {
+        return;
+      }
+
+      const { id, totalChunks, chunkNumber, decodedData } = decodedChunk;
+      const buffer = reassemblyBufferRef.current;
+
+      // --- MODIFICATION 2: Use the ref for duplicate checking ---
+      // This check prevents re-processing a message that has already been fully assembled.
+      if (receivedMessageIDsRef.current.has(id)) {
+        return;
+      }
+
+      if (!buffer[id]) {
+        buffer[id] = {
+          totalChunks: totalChunks,
+          chunks: new Map<number, string>(),
+        };
+      }
+
+      buffer[id].chunks.set(chunkNumber, decodedData);
+
+      if (buffer[id].chunks.size === buffer[id].totalChunks) {
+        let fullMessage = '';
+        for (let i = 1; i <= totalChunks; i++) {
+          fullMessage += buffer[id].chunks.get(i) || '';
+        }
+
+        // --- MODIFICATION 3: Add the ID to the ref after assembling ---
+        receivedMessageIDsRef.current.add(id);
+
         setReceivedMessages((prev) => {
-          const newMessage = `[${new Date().toLocaleTimeString()}] ${
-            decodedChunk.decodedData
-          }`;
-          // Add the message only if it's not the same as the most recent one
-          return prev.at(-1)?.endsWith(decodedChunk.decodedData)
-            ? prev
-            : [...prev, newMessage];
+          const formattedMessage = `[${new Date().toLocaleTimeString()}] ${fullMessage}`;
+          return [...prev, formattedMessage];
         });
+
+        delete buffer[id];
       }
     });
 
-    // Cleanup on unmount
     return () => {
       stopListener();
+      if (broadcastIntervalRef.current) {
+        clearInterval(broadcastIntervalRef.current);
+      }
       managerRef.current?.destroy();
     };
-  }, []);
+    // --- MODIFICATION 4: Remove the dependency array to run the effect only once ---
+  }, []); // Empty array ensures this effect runs only on mount and cleans up on unmount.
 
+  // handleStartBroadcasting and handleStopBroadcasting remain unchanged from the previous version.
   const handleStartBroadcasting = () => {
     if (!message.trim()) {
       Alert.alert('Input Error', 'Please enter a message to broadcast.');
       return;
     }
-
     const createdChunks = encodeMessageToChunks(message);
-    console.log('createdChunks', createdChunks);
-    setIsBroadcasting(true);
-
-    // Broadcast the first chunk.
-    // NOTE: For multi-chunk messages, you would need to implement a mechanism
-    // to cycle through `createdChunks` with a delay between each broadcast.
-    if (createdChunks.length > 0) {
-      broadcastOverBle(createdChunks[0]);
+    if (createdChunks.length === 0) {
+      return;
     }
+    setIsBroadcasting(true);
+    let chunkIndex = 0;
+    if (broadcastIntervalRef.current) {
+      clearInterval(broadcastIntervalRef.current);
+    }
+    broadcastIntervalRef.current = setInterval(() => {
+      if (chunkIndex >= createdChunks.length) {
+        chunkIndex = 0;
+      }
+      console.log(
+        `Broadcasting chunk ${chunkIndex + 1}/${createdChunks.length} (looping)`
+      );
+      broadcastOverBle(createdChunks[chunkIndex]);
+      chunkIndex++;
+    }, 250);
   };
 
   const handleStopBroadcasting = () => {
+    if (broadcastIntervalRef.current) {
+      clearInterval(broadcastIntervalRef.current);
+      broadcastIntervalRef.current = null;
+    }
     stopBleBroadcast();
     setIsBroadcasting(false);
   };
 
+  // The JSX remains the same.
   return (
     <View style={styles.container}>
       {/* Broadcaster Section */}
@@ -373,7 +424,7 @@ const App = () => {
         </View>
         {isBroadcasting && (
           <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>🔴 Broadcasting: "{message}"</Text>
+            <Text style={styles.statusText}>🔴 Broadcasting: {message}</Text>
           </View>
         )}
       </View>

@@ -14,6 +14,7 @@ import {
   useTheme 
 } from 'react-native-paper';
 import { router } from 'expo-router';
+import { useCameraPermissions } from 'expo-camera';
 import { useWallet } from '@/contexts/WalletContext';
 import { 
   NeoBrutalButton, 
@@ -23,14 +24,11 @@ import {
   NeoBrutalDivider 
 } from '@/components/NeoBrutalismComponents';
 import { NeoBrutalismColors } from '@/constants/neoBrutalism';
-import { 
-  requestAllPermissions, 
-  showPermissionExplanation, 
-  showPermissionDeniedDialog 
-} from '@/utils/permissions';
+import { requestBluetoothPermissions } from '@/utils/permissions';
 
 export default function WelcomePage(): React.JSX.Element {
   const { isLoggedIn, createWallet } = useWallet();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
   const theme = useTheme();
 
@@ -45,68 +43,32 @@ export default function WelcomePage(): React.JSX.Element {
     try {
       setIsCreatingWallet(true);
       
-      console.log('🔐 Starting wallet creation process...');
+      console.log('🔐 Starting wallet creation with permission requests...');
       
-      // Step 1: Show permission explanation
-      const userAcceptedExplanation = await showPermissionExplanation();
-      if (!userAcceptedExplanation) {
-        console.log('❌ User declined permission explanation');
-        setIsCreatingWallet(false);
-        return;
-      }
+      // 1. Request Camera Permission - Native dialog
+      console.log('📷 Requesting camera permission...');
+      const cameraResult = await requestCameraPermission();
+      console.log('Camera permission result:', cameraResult.status);
       
-      // Step 2: Request all permissions
-      console.log('📋 Requesting all permissions...');
-      const permissionResults = await requestAllPermissions();
+      // 2. Request Bluetooth Permissions - Native dialogs
+      console.log('📶 Requesting Bluetooth permissions...');
+      const bluetoothGranted = await requestBluetoothPermissions();
+      console.log('Bluetooth permission result:', bluetoothGranted);
       
-      // Step 3: Handle permission results
-      if (!permissionResults.allGranted) {
-        const deniedPermissions: string[] = [];
-        if (!permissionResults.camera) deniedPermissions.push('Camera');
-        if (!permissionResults.bluetooth) deniedPermissions.push('Bluetooth');
-        
-        console.log('❌ Some permissions denied:', deniedPermissions);
-        
-        const userWantsToTryAgain = await showPermissionDeniedDialog(deniedPermissions);
-        if (userWantsToTryAgain) {
-          // Retry permission request
-          setIsCreatingWallet(false);
-          setTimeout(() => handleCreateWallet(), 100);
-          return;
-        } else {
-          // User chose to skip permissions - still create wallet but warn about limited functionality
-          Alert.alert(
-            'Limited Functionality',
-            'NoNet will work with limited functionality without all permissions. You can grant permissions later in your device settings.',
-            [{ text: 'Continue Anyway', onPress: () => proceedWithWalletCreation() }]
-          );
-          return;
-        }
-      }
+      console.log('📋 Permission Summary:', {
+        camera: cameraResult.status === 'granted' ? '✅' : '❌',
+        bluetooth: bluetoothGranted ? '✅' : '❌',
+      });
       
-      // Step 4: All permissions granted, create wallet
-      console.log('✅ All permissions granted, creating wallet...');
-      await proceedWithWalletCreation();
-      
-    } catch (error) {
-      console.error('❌ Error in wallet creation process:', error);
-      Alert.alert(
-        'Error',
-        'Failed to create wallet. Please try again.',
-        [{ text: 'OK' }]
-      );
-      setIsCreatingWallet(false);
-    }
-  };
-
-  const proceedWithWalletCreation = async () => {
-    try {
-      console.log('🔐 Creating cryptographic wallet...');
+      // Create wallet regardless of permission results
+      // App will work with limited functionality if permissions denied
+      console.log('🔐 Creating wallet...');
       await createWallet();
       
-      console.log('✅ Wallet created successfully, navigating to app...');
-      // Navigate directly to tabs
+      console.log('✅ Wallet created, navigating to app...');
+      // Navigate to main app
       router.replace('/(tabs)');
+      
     } catch (error) {
       console.error('❌ Error creating wallet:', error);
       Alert.alert(

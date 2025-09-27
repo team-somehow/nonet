@@ -1,17 +1,23 @@
 import React from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image,
   SafeAreaView,
 } from 'react-native';
+import {
+  Text,
+  Button,
+  Card,
+  Surface,
+  Divider,
+  Chip,
+  useTheme,
+} from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Colors } from '@/constants/theme';
 
 export default function TransactionSuccessPage(): React.JSX.Element {
+  const theme = useTheme();
   const { 
     amount, 
     currency, 
@@ -39,87 +45,103 @@ export default function TransactionSuccessPage(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         {/* Success Icon */}
         <View style={styles.successHeader}>
-          <View style={styles.successIconContainer}>
+          <Surface style={styles.successIconContainer} elevation={3}>
             <Text style={styles.successIcon}>🎉</Text>
-          </View>
-          <Text style={styles.successTitle}>Transaction Sent!</Text>
-          <Text style={styles.successSubtitle}>
+          </Surface>
+          <Text variant="headlineMedium" style={[styles.successTitle, { color: theme.colors.onBackground }]}>
+            Transaction Sent!
+          </Text>
+          <Text variant="bodyLarge" style={[styles.successSubtitle, { color: theme.colors.onSurfaceVariant }]}>
             Your transaction has been broadcast through the offline mesh network
           </Text>
         </View>
 
         {/* Transaction Summary Card */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryTitle}>Transaction Summary</Text>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>✓ Broadcast</Text>
+        <Card style={styles.summaryCard}>
+          <Card.Content>
+            <View style={styles.summaryHeader}>
+              <Text variant="titleLarge" style={styles.summaryTitle}>Transaction Summary</Text>
+              <Chip mode="flat" style={styles.statusChip} textStyle={styles.statusText}>
+                ✓ Broadcast
+              </Chip>
             </View>
-          </View>
 
-          {/* Amount */}
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Amount Sent</Text>
-            <Text style={styles.summaryValue}>
-              {amount} {currency}
-            </Text>
-          </View>
+            <Divider style={styles.divider} />
 
-          {/* From Address */}
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>From</Text>
-            <Text style={styles.summaryValueMono}>
-              {fromAddress ? `${fromAddress.slice(0, 8)}...${fromAddress.slice(-8)}` : 'Unknown'}
-            </Text>
-          </View>
+            {/* Amount */}
+            <View style={styles.summaryItem}>
+              <Text variant="labelMedium" style={styles.summaryLabel}>Amount Sent</Text>
+              <Text variant="headlineSmall" style={styles.summaryValue}>
+                {amount} {currency}
+              </Text>
+            </View>
 
-          {/* To Address */}
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>To</Text>
-            <Text style={styles.summaryValueMono}>
-              {toAddress ? `${toAddress.slice(0, 8)}...${toAddress.slice(-8)}` : 'Unknown'}
-            </Text>
-          </View>
+            {/* From Address */}
+            <View style={styles.summaryItem}>
+              <Text variant="labelMedium" style={styles.summaryLabel}>From</Text>
+              <Surface style={styles.addressSurface} elevation={1}>
+                <Text variant="bodyMedium" style={styles.summaryValueMono}>
+                  {fromAddress ? `${fromAddress.slice(0, 8)}...${fromAddress.slice(-8)}` : 'Unknown'}
+                </Text>
+              </Surface>
+            </View>
 
-          {/* Network */}
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Network</Text>
-            <Text style={styles.summaryValue}>{chain}</Text>
-          </View>
+            {/* To Address */}
+            <View style={styles.summaryItem}>
+              <Text variant="labelMedium" style={styles.summaryLabel}>To</Text>
+              <Surface style={styles.addressSurface} elevation={1}>
+                <Text variant="bodyMedium" style={styles.summaryValueMono}>
+                  {toAddress ? `${toAddress.slice(0, 8)}...${toAddress.slice(-8)}` : 'Unknown'}
+                </Text>
+              </Surface>
+            </View>
 
-          {/* Transaction Hash */}
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Offline Transaction Hash</Text>
-            <Text style={styles.summaryValueMono}>
-              {txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-10)}` : 'Generating...'}
-            </Text>
-          </View>
+            {/* Network */}
+            <View style={styles.summaryItem}>
+              <Text variant="labelMedium" style={styles.summaryLabel}>Network</Text>
+              <Chip mode="outlined">{chain}</Chip>
+            </View>
 
-          {/* Timestamp */}
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Initiated At</Text>
-            <Text style={styles.summaryValue}>
-              {timestamp ? new Date(parseInt(timestamp)).toLocaleString() : 'Just now'}
-            </Text>
-          </View>
-        </View>
+            {/* Transaction Hash */}
+            <View style={styles.summaryItem}>
+              <Text variant="labelMedium" style={styles.summaryLabel}>Offline Transaction Hash</Text>
+              <Surface style={styles.addressSurface} elevation={1}>
+                <Text variant="bodySmall" style={styles.summaryValueMono}>
+                  {txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-10)}` : 'Generating...'}
+                </Text>
+              </Surface>
+            </View>
+
+            {/* Timestamp */}
+            <View style={styles.summaryItem}>
+              <Text variant="labelMedium" style={styles.summaryLabel}>Initiated At</Text>
+              <Text variant="bodyMedium" style={styles.summaryValue}>
+                {timestamp ? new Date(parseInt(timestamp)).toLocaleString() : 'Just now'}
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
 
         {/* Offline Notice */}
-        <View style={styles.offlineNotice}>
-          <View style={styles.offlineIcon}>
-            <Text style={styles.offlineIconText}>📡</Text>
-          </View>
-          <View style={styles.offlineContent}>
-            <Text style={styles.offlineTitle}>Offline Transaction</Text>
-            <Text style={styles.offlineDescription}>
-              This transaction was processed through our mesh network and will be confirmed once it reaches an internet gateway. No internet connection required!
-            </Text>
-          </View>
-        </View>
+        <Card style={styles.offlineCard}>
+          <Card.Content>
+            <View style={styles.offlineNotice}>
+              <Surface style={styles.offlineIconSurface} elevation={2}>
+                <Text style={styles.offlineIconText}>📡</Text>
+              </Surface>
+              <View style={styles.offlineContent}>
+                <Text variant="titleMedium" style={styles.offlineTitle}>Offline Transaction</Text>
+                <Text variant="bodyMedium" style={styles.offlineDescription}>
+                  This transaction was processed through our mesh network and will be confirmed once it reaches an internet gateway. No internet connection required!
+                </Text>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
 
         {/* Mesh Network Status */}
         <View style={styles.meshStatus}>
@@ -157,23 +179,27 @@ export default function TransactionSuccessPage(): React.JSX.Element {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.primaryButton}
+          <Button
+            mode="contained"
             onPress={handleGoHome}
+            style={styles.primaryButton}
+            contentStyle={styles.buttonContent}
           >
-            <Text style={styles.primaryButtonText}>Go to Home</Text>
-          </TouchableOpacity>
+            Go to Home
+          </Button>
 
-          <TouchableOpacity
-            style={styles.secondaryButton}
+          <Button
+            mode="outlined"
             onPress={handleNewTransaction}
+            style={styles.secondaryButton}
+            contentStyle={styles.buttonContent}
           >
-            <Text style={styles.secondaryButtonText}>Send Another Transaction</Text>
-          </TouchableOpacity>
+            Send Another Transaction
+          </Button>
         </View>
 
         {/* Footer Note */}
-        <Text style={styles.footerNote}>
+        <Text variant="bodySmall" style={[styles.footerNote, { color: theme.colors.onSurfaceVariant }]}>
           Your transaction is now in the queue and will be processed automatically when network connectivity is available.
         </Text>
       </ScrollView>
@@ -184,134 +210,38 @@ export default function TransactionSuccessPage(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   content: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
   },
   successHeader: {
     alignItems: 'center',
-    marginBottom: 30,
-    marginTop: 20,
+    marginBottom: 24,
+    marginTop: 16,
   },
   successIconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E8F5E8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   successIcon: {
     fontSize: 40,
   },
   successTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.light.text,
     marginBottom: 8,
+    textAlign: 'center',
   },
   successSubtitle: {
-    fontSize: 16,
-    color: Colors.light.icon,
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 20,
   },
   summaryCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  statusBadge: {
-    backgroundColor: '#E8F5E8',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '600',
-  },
-  summaryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: Colors.light.icon,
-    flex: 1,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.light.text,
-    flex: 1,
-    textAlign: 'right',
-  },
-  summaryValueMono: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.light.text,
-    fontFamily: 'monospace',
-    flex: 1,
-    textAlign: 'right',
-  },
-  offlineNotice: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF8E1',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FFC107',
-  },
-  offlineIcon: {
-    marginRight: 12,
-  },
-  offlineIconText: {
-    fontSize: 24,
-  },
-  offlineContent: {
-    flex: 1,
-  },
-  offlineTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 4,
-  },
-  offlineDescription: {
-    fontSize: 14,
-    color: Colors.light.icon,
-    lineHeight: 20,
+    marginBottom: 16,
   },
   meshStatus: {
     backgroundColor: 'white',
@@ -330,7 +260,6 @@ const styles = StyleSheet.create({
   meshTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.light.text,
     marginBottom: 15,
     textAlign: 'center',
   },
@@ -358,7 +287,6 @@ const styles = StyleSheet.create({
   },
   meshStepLabel: {
     fontSize: 10,
-    color: Colors.light.icon,
     fontWeight: '500',
   },
   meshConnector: {
@@ -368,39 +296,86 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     marginBottom: 20,
   },
-  actionButtons: {
-    gap: 15,
-  },
-  primaryButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.light.tint,
-  },
-  secondaryButtonText: {
-    color: Colors.light.tint,
-    fontSize: 16,
-    fontWeight: '500',
-  },
   footerNote: {
-    fontSize: 12,
-    color: Colors.light.icon,
     textAlign: 'center',
     marginTop: 20,
     lineHeight: 18,
     fontStyle: 'italic',
+  },
+  // Paper component styles
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  summaryTitle: {
+    flex: 1,
+  },
+  statusChip: {
+    backgroundColor: '#E8F5E8',
+  },
+  statusText: {
+    fontWeight: '600',
+  },
+  divider: {
+    marginBottom: 16,
+  },
+  summaryItem: {
+    marginBottom: 12,
+  },
+  summaryLabel: {
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  summaryValue: {
+    fontWeight: '600',
+  },
+  summaryValueMono: {
+    fontFamily: 'monospace',
+  },
+  addressSurface: {
+    padding: 8,
+    borderRadius: 6,
+  },
+  offlineCard: {
+    marginBottom: 16,
+  },
+  offlineNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  offlineIconSurface: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  offlineIconText: {
+    fontSize: 20,
+  },
+  offlineContent: {
+    flex: 1,
+  },
+  offlineTitle: {
+    marginBottom: 4,
+  },
+  offlineDescription: {
+    lineHeight: 20,
+  },
+  actionButtons: {
+    marginTop: 24,
+    gap: 12,
+  },
+  primaryButton: {
+    marginBottom: 8,
+  },
+  secondaryButton: {
+    marginBottom: 8,
+  },
+  buttonContent: {
+    paddingVertical: 8,
   },
 });

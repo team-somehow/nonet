@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   SafeAreaView,
 } from 'react-native';
+import {
+  Text,
+  Button,
+  Card,
+  Divider,
+  Chip,
+  Surface,
+  useTheme,
+} from 'react-native-paper';
 import { router } from 'expo-router';
-import { Colors } from '@/constants/theme';
 import { useWallet } from '@/contexts/WalletContext';
 
 export default function WalletDemo(): React.JSX.Element {
@@ -20,6 +26,7 @@ export default function WalletDemo(): React.JSX.Element {
     signMessage 
   } = useWallet();
   
+  const theme = useTheme();
   const [isCreating, setIsCreating] = useState(false);
   const [signedMessage, setSignedMessage] = useState<string>('');
 
@@ -66,86 +73,129 @@ export default function WalletDemo(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>🔐 Real Crypto Wallet Demo</Text>
+        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
+          🔐 Real Crypto Wallet Demo
+        </Text>
         
         {!walletData ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>No Wallet Found</Text>
-            <Text style={styles.description}>
-              Create a real ECDSA wallet with proper cryptographic key generation
-            </Text>
-            <TouchableOpacity
-              style={[styles.button, styles.primaryButton, isCreating && styles.disabledButton]}
-              onPress={handleCreateWallet}
-              disabled={isCreating}
-            >
-              <Text style={styles.buttonText}>
-                {isCreating ? 'Generating Keys...' : 'Create Real Wallet'}
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text variant="titleLarge" style={styles.cardTitle}>No Wallet Found</Text>
+              <Text variant="bodyMedium" style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+                Create a real ECDSA wallet with proper cryptographic key generation
               </Text>
-            </TouchableOpacity>
-          </View>
+              <Button
+                mode="contained"
+                onPress={handleCreateWallet}
+                disabled={isCreating}
+                loading={isCreating}
+                style={styles.createButton}
+              >
+                {isCreating ? 'Generating Keys...' : 'Create Real Wallet'}
+              </Button>
+            </Card.Content>
+          </Card>
         ) : (
           <View>
             {/* Wallet Info */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>✅ Wallet Created</Text>
-              <Text style={styles.label}>Address:</Text>
-              <Text style={styles.value}>{walletData.address}</Text>
-              
-              <Text style={styles.label}>Private Key:</Text>
-              <Text style={styles.value}>{walletData.privateKey.slice(0, 20)}...{walletData.privateKey.slice(-10)}</Text>
-              
-              <Text style={styles.label}>Public Key:</Text>
-              <Text style={styles.value}>{walletData.publicKey.slice(0, 20)}...{walletData.publicKey.slice(-10)}</Text>
-              
-              <Text style={styles.label}>Created:</Text>
-              <Text style={styles.value}>{walletData.createdAt.toLocaleString()}</Text>
-            </View>
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text variant="titleLarge" style={styles.cardTitle}>✅ Wallet Created</Text>
+                <Divider style={styles.divider} />
+                
+                <View style={styles.infoRow}>
+                  <Text variant="labelMedium" style={styles.label}>Address:</Text>
+                  <Surface style={styles.valueSurface} elevation={1}>
+                    <Text variant="bodySmall" style={styles.value}>{walletData.address}</Text>
+                  </Surface>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Text variant="labelMedium" style={styles.label}>Private Key:</Text>
+                  <Surface style={styles.valueSurface} elevation={1}>
+                    <Text variant="bodySmall" style={styles.value}>
+                      {walletData.privateKey.slice(0, 20)}...{walletData.privateKey.slice(-10)}
+                    </Text>
+                  </Surface>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Text variant="labelMedium" style={styles.label}>Public Key:</Text>
+                  <Surface style={styles.valueSurface} elevation={1}>
+                    <Text variant="bodySmall" style={styles.value}>
+                      {walletData.publicKey.slice(0, 20)}...{walletData.publicKey.slice(-10)}
+                    </Text>
+                  </Surface>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Text variant="labelMedium" style={styles.label}>Created:</Text>
+                  <Chip mode="outlined" style={styles.dateChip}>
+                    {walletData.createdAt.toLocaleString()}
+                  </Chip>
+                </View>
+              </Card.Content>
+            </Card>
 
             {/* Crypto Operations */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🧪 Test Crypto Operations</Text>
-              
-              <TouchableOpacity style={styles.button} onPress={handleValidateKey}>
-                <Text style={styles.buttonText}>Validate Private Key</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.button} onPress={handleDeriveAddress}>
-                <Text style={styles.buttonText}>Derive Address from Private Key</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.button} onPress={handleSignMessage}>
-                <Text style={styles.buttonText}>Sign Test Message</Text>
-              </TouchableOpacity>
-              
-              {signedMessage && (
-                <View style={styles.signatureContainer}>
-                  <Text style={styles.label}>Message Signature:</Text>
-                  <Text style={styles.signatureText}>{signedMessage.slice(0, 30)}...{signedMessage.slice(-20)}</Text>
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text variant="titleLarge" style={styles.cardTitle}>🧪 Test Crypto Operations</Text>
+                <Divider style={styles.divider} />
+                
+                <View style={styles.buttonGroup}>
+                  <Button mode="outlined" onPress={handleValidateKey} style={styles.operationButton}>
+                    Validate Private Key
+                  </Button>
+                  
+                  <Button mode="outlined" onPress={handleDeriveAddress} style={styles.operationButton}>
+                    Derive Address
+                  </Button>
+                  
+                  <Button mode="outlined" onPress={handleSignMessage} style={styles.operationButton}>
+                    Sign Test Message
+                  </Button>
                 </View>
-              )}
-            </View>
+                
+                {signedMessage && (
+                  <Surface style={styles.signatureSurface} elevation={2}>
+                    <Text variant="labelMedium" style={styles.label}>Message Signature:</Text>
+                    <Text variant="bodySmall" style={styles.signatureText}>
+                      {signedMessage.slice(0, 30)}...{signedMessage.slice(-20)}
+                    </Text>
+                  </Surface>
+                )}
+              </Card.Content>
+            </Card>
 
             {/* Technical Details */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🔬 Technical Details</Text>
-              <Text style={styles.techDetail}>• Uses secp256k1 ECDSA curve</Text>
-              <Text style={styles.techDetail}>• Private key: 32 bytes (256 bits)</Text>
-              <Text style={styles.techDetail}>• Public key: 65 bytes uncompressed</Text>
-              <Text style={styles.techDetail}>• Address: Keccak256 hash of public key</Text>
-              <Text style={styles.techDetail}>• Compatible with Ethereum, BSC, Polygon</Text>
-            </View>
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text variant="titleLarge" style={styles.cardTitle}>🔬 Technical Details</Text>
+                <Divider style={styles.divider} />
+                
+                <View style={styles.techDetails}>
+                  <Chip mode="flat" style={styles.techChip}>secp256k1 ECDSA curve</Chip>
+                  <Chip mode="flat" style={styles.techChip}>32 bytes private key</Chip>
+                  <Chip mode="flat" style={styles.techChip}>65 bytes public key</Chip>
+                  <Chip mode="flat" style={styles.techChip}>Keccak256 address</Chip>
+                  <Chip mode="flat" style={styles.techChip}>Multi-chain compatible</Chip>
+                </View>
+              </Card.Content>
+            </Card>
           </View>
         )}
 
-        <TouchableOpacity
-          style={[styles.button, styles.backButton]}
+        <Button
+          mode="text"
           onPress={() => router.back()}
+          style={styles.backButton}
+          contentStyle={styles.backButtonContent}
         >
-          <Text style={styles.backButtonText}>← Back to App</Text>
-        </TouchableOpacity>
+          ← Back to App
+        </Button>
       </ScrollView>
     </SafeAreaView>
   );
@@ -154,100 +204,74 @@ export default function WalletDemo(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 24,
   },
-  section: {
-    marginBottom: 25,
-    padding: 15,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  card: {
+    marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 15,
+  cardTitle: {
+    marginBottom: 8,
+  },
+  divider: {
+    marginVertical: 12,
   },
   description: {
-    fontSize: 14,
-    color: Colors.light.icon,
+    marginBottom: 16,
     lineHeight: 20,
-    marginBottom: 15,
+  },
+  createButton: {
+    marginTop: 8,
+  },
+  infoRow: {
+    marginBottom: 12,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.light.icon,
-    marginTop: 10,
-    marginBottom: 5,
+    marginBottom: 6,
+    textTransform: 'uppercase',
   },
-  value: {
-    fontSize: 12,
-    fontFamily: 'monospace',
-    color: Colors.light.text,
-    backgroundColor: '#f5f5f5',
-    padding: 8,
-    borderRadius: 5,
-  },
-  button: {
-    backgroundColor: Colors.light.tint,
+  valueSurface: {
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 10,
   },
-  primaryButton: {
-    backgroundColor: '#4CAF50',
+  value: {
+    fontFamily: 'monospace',
   },
-  disabledButton: {
-    backgroundColor: Colors.light.icon,
+  dateChip: {
+    alignSelf: 'flex-start',
   },
-  backButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.light.tint,
+  buttonGroup: {
+    gap: 8,
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
+  operationButton: {
+    marginBottom: 8,
   },
-  backButtonText: {
-    color: Colors.light.tint,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  signatureContainer: {
-    marginTop: 10,
+  signatureSurface: {
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 16,
   },
   signatureText: {
-    fontSize: 10,
     fontFamily: 'monospace',
-    color: Colors.light.text,
-    backgroundColor: '#e8f5e8',
-    padding: 8,
-    borderRadius: 5,
+    marginTop: 8,
   },
-  techDetail: {
-    fontSize: 12,
-    color: Colors.light.icon,
-    marginBottom: 5,
-    lineHeight: 16,
+  techDetails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  techChip: {
+    marginBottom: 4,
+  },
+  backButton: {
+    marginTop: 16,
+  },
+  backButtonContent: {
+    paddingVertical: 4,
   },
 });

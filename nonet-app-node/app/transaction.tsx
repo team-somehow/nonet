@@ -42,7 +42,6 @@ export default function TransactionPage(): React.JSX.Element {
   const [selectedCurrency, setSelectedCurrency] =
     useState<Currency>(DEFAULT_CURRENCY);
   const [selectedChain, setSelectedChain] = useState<Chain>(DEFAULT_CHAIN);
-  const [memo, setMemo] = useState<string>('');
 
   // Modal states
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
@@ -305,24 +304,6 @@ export default function TransactionPage(): React.JSX.Element {
           </Card.Content>
         </Card>
 
-        {/* Memo (Optional) */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="labelLarge" style={styles.label}>
-              Memo (Optional)
-            </Text>
-            <TextInput
-              style={styles.memoInput}
-              value={memo}
-              onChangeText={setMemo}
-              placeholder="Add a note..."
-              multiline
-              mode="outlined"
-              numberOfLines={3}
-            />
-          </Card.Content>
-        </Card>
-
         {/* Submit Button */}
         <Button
           mode="contained"
@@ -346,7 +327,7 @@ export default function TransactionPage(): React.JSX.Element {
       </View>
 
       {/* Currency Selection Modal */}
-      <Portal>
+      {/* <Portal>
         <Modal
           visible={showCurrencyModal}
           onDismiss={() => setShowCurrencyModal(false)}
@@ -370,7 +351,7 @@ export default function TransactionPage(): React.JSX.Element {
             />
           </Surface>
         </Modal>
-      </Portal>
+      </Portal> */}
 
       {/* Chain Selection Modal */}
       <Portal>

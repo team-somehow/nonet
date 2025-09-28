@@ -246,6 +246,8 @@ Each device maintains a master state of all active messages:
 - **Hedera Testnet**: [`0xc6C46289fA5FdC583Cdb5e5C2900af4333423787`](https://hashscan.io/testnet/contract/0.0.6915692)
 - **Flow Testnet**: [`0xc7a5Fd47Bc5725600E03124263056C897fb96b6c`](https://evm-testnet.flowscan.io/address/0xc7a5Fd47Bc5725600E03124263056C897fb96b6c)
 
+- Hedera: 0xc7a5fd47bc5725600e03124263056c897fb96b6c
+- Flow: 0xc7a5Fd47Bc5725600E03124263056C897fb96b6c
 #### EIP-3009 Meta-Transactions
 
 NONET implements EIP-3009 for gasless transactions:

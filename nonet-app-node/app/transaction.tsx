@@ -23,11 +23,8 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
 import {
-  CURRENCIES,
   CHAINS,
-  DEFAULT_CURRENCY,
   DEFAULT_CHAIN,
-  Currency,
   Chain,
 } from '@/constants/assets';
 import { TransactionLoader } from '@/components/TransactionLoader';
@@ -39,12 +36,9 @@ export default function TransactionPage(): React.JSX.Element {
 
   // Transaction state
   const [amount, setAmount] = useState<string>('');
-  const [selectedCurrency, setSelectedCurrency] =
-    useState<Currency>(DEFAULT_CURRENCY);
   const [selectedChain, setSelectedChain] = useState<Chain>(DEFAULT_CHAIN);
 
   // Modal states
-  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showChainModal, setShowChainModal] = useState(false);
   const [showTransactionLoader, setShowTransactionLoader] = useState(false);
 
@@ -109,7 +103,7 @@ export default function TransactionPage(): React.JSX.Element {
       pathname: '/transaction-success',
       params: {
         amount,
-        currency: selectedCurrency.symbol,
+        currency: selectedChain.symbol, // Use chain symbol as currency
         toAddress: toAddress || '',
         fromAddress: userWalletAddress || '',
         chain: selectedChain.name,
@@ -128,27 +122,6 @@ export default function TransactionPage(): React.JSX.Element {
     );
   };
 
-  const renderCurrencyItem = ({ item }: { item: Currency }) => (
-    <List.Item
-      title={item.name}
-      description={item.symbol}
-      left={() => (
-        <View style={styles.imageContainer}>
-          <Image source={item.imageUrl} style={styles.chainImage} />
-        </View>
-      )}
-      right={() =>
-        selectedCurrency.id === item.id ? <List.Icon icon="check" /> : null
-      }
-      onPress={() => {
-        setSelectedCurrency(item);
-        setShowCurrencyModal(false);
-      }}
-      style={styles.modalListItem}
-      titleStyle={styles.modalItemTitle}
-      descriptionStyle={styles.modalItemDescription}
-    />
-  );
 
   const renderChainItem = ({ item }: { item: Chain }) => (
     <List.Item
@@ -180,7 +153,7 @@ export default function TransactionPage(): React.JSX.Element {
         onCancel={handleTransactionCancel}
         transactionData={{
           amount,
-          currency: selectedCurrency.symbol,
+          currency: selectedChain.symbol,
           toAddress: toAddress || '',
           chain: selectedChain.name,
           chainId: selectedChain.chainId,
@@ -260,29 +233,6 @@ export default function TransactionPage(): React.JSX.Element {
           </Card.Content>
         </Card>
 
-        {/* Currency Selection */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="labelLarge" style={styles.label}>
-              Currency
-            </Text>
-            <List.Item
-              title={selectedCurrency.name}
-              description={selectedCurrency.symbol}
-              left={() => (
-                <View style={styles.imageContainer}>
-                  <Image
-                    source={selectedCurrency.imageUrl}
-                    style={styles.chainImage}
-                  />
-                </View>
-              )}
-              right={() => <List.Icon icon="chevron-down" />}
-              onPress={() => setShowCurrencyModal(true)}
-              style={styles.selectorItem}
-            />
-          </Card.Content>
-        </Card>
 
         {/* Amount Input */}
         <Card style={styles.card}>
@@ -298,7 +248,7 @@ export default function TransactionPage(): React.JSX.Element {
                 placeholder="0.00"
                 keyboardType="numeric"
                 mode="outlined"
-                right={<TextInput.Affix text={selectedCurrency.symbol} />}
+                right={<TextInput.Affix text={selectedChain.symbol} />}
               />
             </View>
           </Card.Content>
@@ -326,32 +276,6 @@ export default function TransactionPage(): React.JSX.Element {
         </Button>
       </View>
 
-      {/* Currency Selection Modal */}
-      {/* <Portal>
-        <Modal
-          visible={showCurrencyModal}
-          onDismiss={() => setShowCurrencyModal(false)}
-          contentContainerStyle={styles.modalContainer}
-        >
-          <Surface style={styles.modalSurface}>
-            <View style={styles.modalHeader}>
-              <Text variant="titleLarge">Select Currency</Text>
-              <Button onPress={() => setShowCurrencyModal(false)} mode="text">
-                Close
-              </Button>
-            </View>
-            <Divider />
-            <FlatList
-              data={CURRENCIES}
-              renderItem={renderCurrencyItem}
-              keyExtractor={(item) => item.id}
-              style={styles.modalList}
-              showsVerticalScrollIndicator={false}
-              ItemSeparatorComponent={() => null}
-            />
-          </Surface>
-        </Modal>
-      </Portal> */}
 
       {/* Chain Selection Modal */}
       <Portal>

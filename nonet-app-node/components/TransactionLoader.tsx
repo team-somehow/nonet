@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,64 +7,168 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
-} from 'react-native';
-import { Colors } from '@/constants/theme';
-import { useWallet, TransactionData } from '@/contexts/WalletContext';
-import { useBle } from '@/contexts/BleContext';
+} from "react-native";
+import { Colors } from "@/constants/theme";
+import { useWallet } from "@/contexts/WalletContext";
+import { useBle } from "@/contexts/BleContext";
+import { CONTRACT_CONFIG, TransactionPayload } from "@/constants/contracts";
+import { ethers } from "ethers";
+
+// Create EIP-3009 transferWithAuthorization signature using ethers.js - exactly matches simpleTransferWithAuthorization.ts
+const createTransferWithAuthorizationSignature = async (
+  from: string,
+  to: string,
+  value: string,
+  validAfter: string,
+  validBefore: string,
+  nonce: string,
+  contractAddress: string,
+  chainId: number,
+  privateKey: string
+): Promise<string> => {
+  try {
+    console.log(
+      "🔐 Creating EIP-3009 transferWithAuthorization signature using ethers.js..."
+    );
+
+    // Create wallet from private key (exactly like in simpleTransferWithAuthorization.ts)
+    const wallet = new ethers.Wallet(privateKey);
+    console.log("Wallet address:", wallet.address);
+    console.log("Expected from address:", from);
+
+    // Verify the wallet address matches the from address
+    if (wallet.address.toLowerCase() !== from.toLowerCase()) {
+      throw new Error(
+        `Wallet address mismatch: expected ${from}, got ${wallet.address}`
+      );
+    }
+
+    // Create message hash using solidityPackedKeccak256 (exactly like in the script)
+    // This matches: ethers.solidityPackedKeccak256([types], [values])
+    const messageHash = ethers.solidityPackedKeccak256(
+      [
+        "address", // from
+        "address", // to
+        "uint256", // value
+        "uint256", // validAfter
+        "uint256", // validBefore
+        "bytes32", // nonce
+        "address", // contractAddress
+        "uint256", // chainId
+      ],
+      [
+        from,
+        to,
+        value,
+        validAfter,
+        validBefore,
+        nonce,
+        contractAddress,
+        chainId,
+      ]
+    );
+
+    console.log("📝 Message parameters:", {
+      from,
+      to,
+      value,
+      validAfter,
+      validBefore,
+      nonce,
+      contractAddress,
+      chainId,
+    });
+
+    console.log("🔗 Message Hash (solidityPackedKeccak256):", messageHash);
+
+    // Sign the message hash (exactly like in the script)
+    // The contract expects an Ethereum signed message, so we need to add the prefix
+    const signature = await wallet.signMessage(ethers.getBytes(messageHash));
+
+    console.log("✅ EIP-3009 signature created using ethers.js:", {
+      messageHash,
+      signature,
+      signatureLength: signature.length,
+    });
+
+    // Verify signature (optional verification step like in the script)
+    try {
+      const recoveredSigner = ethers.verifyMessage(
+        ethers.getBytes(messageHash),
+        signature
+      );
+      console.log("🔍 Signature verification:", {
+        recoveredSigner,
+        expectedSigner: from,
+        isValid: recoveredSigner.toLowerCase() === from.toLowerCase(),
+      });
+    } catch (verifyError) {
+      console.warn("⚠️ Signature verification failed:", verifyError);
+    }
+
+    return signature;
+  } catch (error) {
+    console.error(
+      "❌ Error creating EIP-3009 signature with ethers.js:",
+      error
+    );
+    throw new Error("Failed to create transferWithAuthorization signature");
+  }
+};
 
 // Transaction Flow Steps - Easily editable constants
 const TRANSACTION_STEPS = [
   {
     id: 1,
-    title: 'Preparing Transaction',
-    description: 'Encrypting transaction payload with Web3 cryptography',
-    icon: '🔐',
+    title: "Preparing Transaction",
+    description: "Encrypting transaction payload with Web3 cryptography",
+    icon: "🔐",
     duration: 2000,
   },
   {
     id: 2,
-    title: 'Scanning for Nearby Devices',
-    description: 'Looking for Bluetooth-enabled devices in mesh network',
-    icon: '📡',
+    title: "Scanning for Nearby Devices",
+    description: "Looking for Bluetooth-enabled devices in mesh network",
+    icon: "📡",
     duration: 3000,
   },
   {
     id: 3,
-    title: 'Hopping Through Network',
-    description: 'Relaying encrypted payload through offline mesh nodes',
-    icon: '🔄',
+    title: "Hopping Through Network",
+    description: "Relaying encrypted payload through offline mesh nodes",
+    icon: "🔄",
     duration: 4000,
   },
   {
     id: 4,
-    title: 'Finding Internet Gateway',
-    description: 'Locating device with active internet connection',
-    icon: '🌐',
+    title: "Finding Internet Gateway",
+    description: "Locating device with active internet connection",
+    icon: "🌐",
     duration: 3500,
   },
   {
     id: 5,
-    title: 'Broadcasting Transaction',
-    description: 'Submitting to blockchain network via gateway device',
-    icon: '🚀',
+    title: "Broadcasting Transaction",
+    description: "Submitting to blockchain network via gateway device",
+    icon: "🚀",
     duration: 2500,
   },
   {
     id: 6,
-    title: 'Transaction Confirmed',
-    description: 'Successfully broadcasted to the blockchain',
-    icon: '✅',
+    title: "Transaction Confirmed",
+    description: "Successfully broadcasted to the blockchain",
+    icon: "✅",
     duration: 1000,
   },
 ];
 
 const LOADING_MESSAGES = [
-  'Preparing and signing transaction...',
-  'Scanning for nearby mesh nodes...',
-  'Routing through offline network...',
-  'Finding internet gateway...',
-  'Broadcasting to blockchain network...',
-  'Transaction confirmed on blockchain!',
+  "Preparing and signing transaction...",
+  "Scanning for nearby mesh nodes...",
+  "Routing through offline network...",
+  "Finding internet gateway...",
+  "Broadcasting to blockchain network...",
+  "Transaction confirmed on blockchain!",
 ];
 
 interface TransactionLoaderProps {
@@ -84,7 +188,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
   onCancel,
   transactionData,
 }) => {
-  const { signTransaction, userWalletAddress } = useWallet();
+  const { userWalletAddress, walletData } = useWallet();
   const { broadcastMessage, masterState } = useBle();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -111,7 +215,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
     // STRICT: only resume if we have proper confirmation through BLE mesh network
     if (!broadcastId) {
       console.log(
-        '⚠️ Cannot resume transaction flow: no broadcast ID - waiting for confirmation'
+        "⚠️ Cannot resume transaction flow: no broadcast ID - waiting for confirmation"
       );
       return;
     }
@@ -119,14 +223,14 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
     const state = masterState.get(broadcastId);
     if (!state || !state.isComplete || !state.isAck) {
       console.log(
-        '⚠️ Cannot resume transaction flow: invalid state - still waiting for confirmation',
+        "⚠️ Cannot resume transaction flow: invalid state - still waiting for confirmation",
         state
       );
       return;
     }
 
     console.log(
-      '✅ Resuming transaction flow with CONFIRMED state from mesh network'
+      "✅ Resuming transaction flow with CONFIRMED state from mesh network"
     );
 
     // Continue from gateway step through broadcasting to completion
@@ -198,7 +302,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
       // Only allow completion if we have a confirmed broadcast state
       if (!broadcastId || !masterState.has(broadcastId)) {
         console.log(
-          '⚠️ STRICT Safety check: Preventing completion - no confirmed mesh state'
+          "⚠️ STRICT Safety check: Preventing completion - no confirmed mesh state"
         );
         setIsCompleted(false);
         return;
@@ -207,7 +311,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
       const state = masterState.get(broadcastId);
       if (!state || !state.isComplete || !state.isAck) {
         console.log(
-          '⚠️ STRICT Safety check: Preventing completion - mesh confirmation not received'
+          "⚠️ STRICT Safety check: Preventing completion - mesh confirmation not received"
         );
         setIsCompleted(false);
       }
@@ -252,29 +356,29 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
   // Get current loading message based on state
   const getCurrentLoadingMessage = (): string => {
     if (isCompleted) {
-      return 'Transaction completed successfully!';
+      return "Transaction completed successfully!";
     }
 
     if (isWaitingForConfirmation || (isBroadcasting && shouldPauseFlow)) {
       if (broadcastId && masterState.has(broadcastId)) {
         const state = masterState.get(broadcastId);
         if (state?.isAck && !state?.isComplete) {
-          return 'Received acknowledgment, waiting for final confirmation...';
+          return "Received acknowledgment, waiting for final confirmation...";
         }
         if (state?.isComplete && state?.isAck) {
-          return 'Transaction confirmed by mesh network! Finalizing...';
+          return "Transaction confirmed by mesh network! Finalizing...";
         }
-        return 'Broadcasting transaction via mesh network...';
+        return "Broadcasting transaction via mesh network...";
       }
-      return 'Waiting for mesh network confirmation...';
+      return "Waiting for mesh network confirmation...";
     }
 
     // If we've reached the gateway step, always show waiting message
     if (currentStep >= 3) {
-      return 'Found gateway device, waiting for mesh network confirmation...';
+      return "Found gateway device, waiting for mesh network confirmation...";
     }
 
-    return LOADING_MESSAGES[loadingMessageIndex] || 'Processing...';
+    return LOADING_MESSAGES[loadingMessageIndex] || "Processing...";
   };
 
   // Get chunk progress for display
@@ -304,68 +408,72 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
     return false;
   }, [broadcastId, masterState]);
 
-  // Function to sign the transaction
+  // Function to sign the transaction and create payload
   const handleTransactionSigning = async () => {
     try {
-      if (!transactionData) {
-        console.log('❌ No transaction data provided');
-        return;
+      if (!transactionData || !userWalletAddress) {
+        throw new Error("Missing transaction data or wallet address");
       }
 
-      // Use the user's wallet address from component level hook
+      console.log("🔐 Creating transaction payload for mesh network...");
 
-      // Convert amount to wei (assuming amount is in ETH)
-      const amountInWei = BigInt(
-        Math.floor(parseFloat(transactionData.amount) * Math.pow(10, 18))
+      // Generate transaction parameters similar to simpleSubmitTxnOnChain.ts
+      const currentTime = Math.floor(Date.now() / 1000);
+      const validAfter = "0"; // Valid immediately
+      const validBefore = (currentTime + 3600).toString(); // Valid for 1 hour
+
+      // Generate a random nonce (32 bytes)
+      const nonce =
+        "0x" +
+        Array.from({ length: 64 }, () =>
+          Math.floor(Math.random() * 16).toString(16)
+        ).join("");
+
+      if (!walletData?.privateKey) {
+        throw new Error("No wallet private key available for signing");
+      }
+
+      // Convert amount to wei (assuming 18 decimals)
+      const valueInWei = (
+        BigInt(transactionData.amount) * BigInt(10 ** 18)
+      ).toString();
+
+      // Create real EIP-3009 signature using wallet's private key
+      const realSignature = await createTransferWithAuthorizationSignature(
+        userWalletAddress,
+        transactionData.toAddress,
+        valueInWei,
+        validAfter,
+        validBefore,
+        nonce,
+        CONTRACT_CONFIG.CONTRACT_ADDRESS,
+        transactionData.chainId || 545, // Flow EVM testnet chain ID
+        walletData.privateKey
       );
-      const valueHex = '0x' + amountInWei.toString(16);
 
-      // Create transaction data for signing
-      const txData: TransactionData = {
-        to: transactionData.toAddress,
-        value: transactionData.amount,
-        gasLimit: '21000',
-        gasPrice: '20000000000', // 20 Gwei
-        nonce: '0',
-        chainId: transactionData.chainId, // Use selected chain ID
-      };
-
-      console.log('🔐 Signing transaction in TransactionLoader...');
-      console.log(
-        '🌐 Selected chain:',
-        transactionData.chain,
-        'Chain ID:',
-        transactionData.chainId
-      );
-      console.log('💰 Selected currency:', transactionData.currency);
-      console.log('📝 Transaction data:', txData);
-
-      // Sign the transaction using the wallet context
-      const signedTransaction = await signTransaction(txData);
-
-      // Create the local transaction payload
-      const transactionPayload = {
-        from: userWalletAddress || '0x0000000000000000000000000000000000000000',
-        to: transactionData.toAddress,
-        value: valueHex,
-        gas: '0x' + parseInt(txData.gasLimit || '21000').toString(16),
-        gasPrice:
-          '0x' + parseInt(txData.gasPrice || '20000000000').toString(16),
-        nonce: '0x' + parseInt(txData.nonce || '0').toString(16),
-        chainId: '0x' + txData?.chainId?.toString(16),
-        data: txData.data || '0x',
-        signature: {
-          v: signedTransaction.v,
-          r: signedTransaction.r,
-          s: signedTransaction.s,
+      // Create the transaction payload structure
+      const transactionPayload: TransactionPayload = {
+        type: "TRANSFER_WITH_AUTHORIZATION",
+        contractAddress: CONTRACT_CONFIG.CONTRACT_ADDRESS,
+        functionName: "transferWithAuthorization",
+        parameters: {
+          from: userWalletAddress,
+          to: transactionData.toAddress,
+          value: valueInWei,
+          validAfter: validAfter,
+          validBefore: validBefore,
+          nonce: nonce,
+          signature: realSignature,
         },
       };
 
-      console.log('Transaction Hash:', signedTransaction.transactionHash);
-      console.log('Raw Transaction:', signedTransaction.rawTransaction);
-
-      console.log('📋 LOCAL TRANSACTION PAYLOAD:');
-      console.log(JSON.stringify(transactionPayload, null, 2));
+      console.log("📝 Transaction payload created:", {
+        type: transactionPayload.type,
+        contractAddress: transactionPayload.contractAddress,
+        from: transactionPayload.parameters.from,
+        to: transactionPayload.parameters.to,
+        value: transactionPayload.parameters.value,
+      });
 
       // Start broadcasting the transaction payload
       try {
@@ -385,19 +493,19 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         if (latestState) {
           setBroadcastId(latestState[0]);
           console.log(
-            '🚀 Started broadcasting transaction with ID:',
+            "🚀 Started broadcasting transaction with ID:",
             latestState[0]
           );
         }
       } catch (error) {
-        console.error('❌ Error broadcasting transaction payload:', error);
+        console.error("❌ Error broadcasting transaction payload:", error);
         // Reset flags on error
         setIsBroadcasting(false);
         setShouldPauseFlow(false);
         setIsWaitingForConfirmation(false);
       }
     } catch (error) {
-      console.error('❌ Error signing transaction:', error);
+      console.error("❌ Error signing transaction:", error);
     }
   };
 
@@ -411,9 +519,9 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
         if ((shouldPauseFlow || isWaitingForConfirmation) && index >= 3) {
           // Stop at "Finding Internet Gateway" step (index 3) and wait for confirmation
           console.log(
-            '🔄 Pausing transaction flow at step:',
+            "🔄 Pausing transaction flow at step:",
             step.title,
-            'waiting for confirmation...'
+            "waiting for confirmation..."
           );
           return; // Don't proceed to next steps
         }
@@ -435,7 +543,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
           setIsWaitingForConfirmation(true);
           setShouldPauseFlow(true);
           console.log(
-            '🌐 Reached Finding Internet Gateway step - waiting for confirmation...'
+            "🌐 Reached Finding Internet Gateway step - waiting for confirmation..."
           );
         }
       }, totalDuration);
@@ -581,7 +689,7 @@ export const TransactionLoader: React.FC<TransactionLoaderProps> = ({
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
+    outputRange: ["0%", "100%"],
   });
 
   return (
@@ -679,33 +787,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 20,
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.light.text,
     marginBottom: 10,
   },
   transactionInfo: {
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
     padding: 12,
     borderRadius: 8,
-    width: '100%',
+    width: "100%",
   },
   transactionText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.light.text,
   },
   transactionAddress: {
     fontSize: 14,
     color: Colors.light.icon,
-    fontFamily: 'monospace',
+    fontFamily: "monospace",
     marginTop: 2,
   },
   transactionChain: {
@@ -719,19 +827,19 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 6,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: "#e0e0e0",
     borderRadius: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   progressFill: {
-    height: '100%',
+    height: "100%",
     backgroundColor: Colors.light.tint,
     borderRadius: 3,
   },
   progressText: {
     fontSize: 12,
     color: Colors.light.icon,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 8,
   },
   scrollContainer: {
@@ -745,55 +853,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   stepContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 25,
     paddingHorizontal: 10,
   },
   stepIconContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginRight: 15,
   },
   stepIcon: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: "#e0e0e0",
   },
   stepIconActive: {
     backgroundColor: Colors.light.tint,
     borderColor: Colors.light.tint,
   },
   stepIconCompleted: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
+    borderColor: "#4CAF50",
   },
   stepIconText: {
     fontSize: 22,
   },
   stepIconTextActive: {
-    color: 'white',
+    color: "white",
   },
   stepLine: {
     width: 3,
     height: 40,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: "#e0e0e0",
     marginTop: 8,
   },
   stepLineCompleted: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
   },
   stepContent: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   stepTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#999',
+    fontWeight: "600",
+    color: "#999",
     marginBottom: 4,
   },
   stepTitleActive: {
@@ -801,14 +909,14 @@ const styles = StyleSheet.create({
   },
   stepDescription: {
     fontSize: 14,
-    color: '#bbb',
+    color: "#bbb",
     lineHeight: 18,
   },
   stepDescriptionActive: {
     color: Colors.light.icon,
   },
   loadingContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
     marginBottom: 15,
     paddingHorizontal: 20,
@@ -816,29 +924,29 @@ const styles = StyleSheet.create({
   loadingMessage: {
     fontSize: 14,
     color: Colors.light.tint,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   fixedFooter: {
     padding: 20,
     backgroundColor: Colors.light.background,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: "#f0f0f0",
   },
   cancelButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     padding: 15,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
     borderColor: Colors.light.icon,
   },
   cancelButtonText: {
     color: Colors.light.icon,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   successContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
     paddingHorizontal: 20,
   },
@@ -848,7 +956,7 @@ const styles = StyleSheet.create({
   },
   successText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontWeight: "bold",
+    color: "#4CAF50",
   },
 });

@@ -5,11 +5,11 @@ import React, {
   useRef,
   useState,
   ReactNode,
-} from 'react';
-import { Platform } from 'react-native';
-import { BleManager } from 'react-native-ble-plx';
-import BleAdvertiser from 'react-native-ble-advertiser';
-import { useNetInfo } from '@react-native-community/netinfo';
+} from "react";
+import { Platform } from "react-native";
+import { BleManager } from "react-native-ble-plx";
+import BleAdvertiser from "react-native-ble-advertiser";
+import { useNetInfo } from "@react-native-community/netinfo";
 import {
   MessageState,
   broadcastOverBle,
@@ -17,13 +17,153 @@ import {
   encodeMessageToChunks,
   decodeSingleChunk,
   listenOverBle,
-} from '../utils/bleUtils';
+} from "../utils/bleUtils";
+import { ethers } from "ethers";
+import {
+  CONTRACT_CONFIG,
+  CONTRACT_ABI,
+  TransactionPayload,
+} from "../constants/contracts";
 
-// --- Mock API ---
-const mockApiRequest = async (originalMessage: string): Promise<string> => {
-  return new Promise((resolve) =>
-    setTimeout(() => resolve(`API Response for "${originalMessage}"`), 1500)
-  );
+// --- Real Blockchain Transaction Submission ---
+const submitTransactionToBlockchain = async (
+  originalMessage: string
+): Promise<string> => {
+  try {
+    console.log("🌐 Gateway device processing transaction payload...");
+
+    // Parse the transaction payload
+    let transactionPayload: TransactionPayload;
+    try {
+      transactionPayload = JSON.parse(originalMessage);
+    } catch (parseError) {
+      console.error("❌ Failed to parse transaction payload:", parseError);
+      return JSON.stringify({
+        success: false,
+        error: "Invalid transaction payload format",
+        timestamp: Date.now(),
+      });
+    }
+
+    // Validate payload structure
+    if (
+      transactionPayload.type !== "TRANSFER_WITH_AUTHORIZATION" ||
+      !transactionPayload.parameters ||
+      !transactionPayload.contractAddress
+    ) {
+      console.error(
+        "❌ Invalid transaction payload structure:",
+        transactionPayload
+      );
+      return JSON.stringify({
+        success: false,
+        error: "Invalid transaction payload structure",
+        timestamp: Date.now(),
+      });
+    }
+
+    const { parameters, contractAddress } = transactionPayload;
+
+    console.log("📝 Processing transferWithAuthorization:", {
+      from: parameters.from,
+      to: parameters.to,
+      value: parameters.value,
+      contractAddress,
+    });
+
+    // Set up the provider and relayer wallet (exactly like simpleSubmitTxnOnChain.ts)
+    const provider = new ethers.JsonRpcProvider(CONTRACT_CONFIG.RPC_URL);
+    const relayerWallet = new ethers.Wallet(
+      CONTRACT_CONFIG.RELAYER_PRIVATE_KEY,
+      provider
+    );
+
+    console.log(`🔗 Relayer Address: ${relayerWallet.address}`);
+
+    // Check relayer balance
+    const balance = await provider.getBalance(relayerWallet.address);
+    console.log(
+      `💰 Relayer Balance: ${ethers.formatEther(balance)} native tokens`
+    );
+
+    if (balance === BigInt(0)) {
+      console.warn(
+        "⚠️ Warning: Relayer wallet has no tokens. Transaction will likely fail."
+      );
+      return JSON.stringify({
+        success: false,
+        error: "Relayer wallet has insufficient balance",
+        timestamp: Date.now(),
+      });
+    }
+
+    // Create contract instance
+    const tokenContract = new ethers.Contract(
+      contractAddress,
+      CONTRACT_ABI,
+      relayerWallet
+    );
+
+    console.log("📡 Submitting transaction to Flow EVM testnet...");
+    console.log("--- Transaction Parameters ---");
+    console.log("from:", parameters.from);
+    console.log("to:", parameters.to);
+    console.log("value:", parameters.value);
+    console.log("validAfter:", parameters.validAfter);
+    console.log("validBefore:", parameters.validBefore);
+    console.log("nonce:", parameters.nonce);
+    console.log("signature:", parameters.signature);
+    console.log("signature length:", parameters.signature.length);
+
+    // Call the contract function with the signed data (exactly like simpleSubmitTxnOnChain.ts)
+    const tx = await tokenContract.transferWithAuthorization(
+      parameters.from,
+      parameters.to,
+      parameters.value,
+      parameters.validAfter,
+      parameters.validBefore,
+      parameters.nonce,
+      parameters.signature
+    );
+
+    console.log(`⏳ Transaction sent! Waiting for confirmation...`);
+    console.log(`Transaction Hash: ${tx.hash}`);
+
+    // Wait for the transaction to be mined
+    const receipt = await tx.wait();
+
+    console.log("✅ Transaction confirmed!");
+    console.log(`Block Number: ${receipt.blockNumber}`);
+    console.log(`Gas Used: ${receipt.gasUsed.toString()}`);
+    console.log(
+      `Flow EVM Explorer: https://evm-testnet.flowscan.io/tx/${tx.hash}`
+    );
+
+    // Return success response
+    return JSON.stringify({
+      success: true,
+      transactionHash: tx.hash,
+      explorerUrl: `https://evm-testnet.flowscan.io/tx/${tx.hash}`,
+    });
+  } catch (error: any) {
+    console.error("❌ Blockchain transaction submission failed:", error);
+
+    // Extract meaningful error message
+    let errorMessage = "Unknown blockchain error";
+    if (error.message) {
+      errorMessage = error.message;
+    } else if (error.reason) {
+      errorMessage = error.reason;
+    } else if (error.code) {
+      errorMessage = `Error code: ${error.code}`;
+    }
+
+    console.log(errorMessage);
+
+    return JSON.stringify({
+      success: false,
+    });
+  }
 };
 
 interface BleContextType {
@@ -97,7 +237,7 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
       // Instead of deleting the state, we update it to receive the response.
       entry.isAck = true;
       entry.isComplete = false;
-      entry.fullMessage = ''; // Clear the old request message text
+      entry.fullMessage = ""; // Clear the old request message text
       entry.chunks.clear(); // Clear the old request chunks
       entry.totalChunks = totalChunks; // Update with the new total for the response
     }
@@ -109,7 +249,7 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
         isComplete: false,
         isAck,
         chunks: new Map<number, Uint8Array>(),
-        fullMessage: '',
+        fullMessage: "",
       };
       masterState.set(id, entry);
     }
@@ -138,7 +278,7 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
       }
 
       const decoder = new TextDecoder();
-      const fullMessage = decoder.decode(fullBinary).replace(/\0/g, ''); // Remove null padding
+      const fullMessage = decoder.decode(fullBinary).replace(/\0/g, ""); // Remove null padding
       entry.fullMessage = fullMessage;
       // --- END OF FIX ---
 
@@ -160,7 +300,7 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
   // Handle API responses
   const handleApiResponse = async (id: number, messageText: string) => {
     try {
-      const apiResponse = await mockApiRequest(messageText);
+      const apiResponse = await submitTransactionToBlockchain(messageText);
       const ackChunks = encodeMessageToChunks(apiResponse, { id, isAck: true });
 
       const ackState: MessageState = {
@@ -176,7 +316,7 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
 
       addToBroadcastQueue(id, ackChunks);
     } catch (err) {
-      console.error('API handling error', err);
+      console.error("API handling error", err);
     }
   };
 
@@ -217,7 +357,7 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
       try {
         broadcastOverBle(chunksToBroadcast[chunkIndex]);
       } catch (e) {
-        console.error('broadcast error', e);
+        console.error("broadcast error", e);
       }
 
       chunkIndex++;
@@ -281,10 +421,10 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
         const maybe = decodeSingleChunk(chunks[0]) as any;
         return {
           id,
-          text: maybe?.decodedData?.slice(0, 120) ?? 'Broadcasting...',
+          text: maybe?.decodedData?.slice(0, 120) ?? "Broadcasting...",
         };
       } catch {
-        return { id, text: 'Broadcasting...' };
+        return { id, text: "Broadcasting..." };
       }
     }
     const maxLen = 60;
@@ -341,9 +481,9 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
           managerRef.current,
           handleIncomingChunk
         );
-        console.log('BLE stack reset and scanner restarted.');
+        console.log("BLE stack reset and scanner restarted.");
       } catch (e) {
-        console.error('Failed to restart scanner after clear:', e);
+        console.error("Failed to restart scanner after clear:", e);
       }
     }, 500);
   };
@@ -351,13 +491,13 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
   // Initialize BLE on mount
   useEffect(() => {
     managerRef.current = new BleManager();
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       try {
         if (BleAdvertiser && (BleAdvertiser as any).setCompanyId) {
           (BleAdvertiser as any).setCompanyId(0xffff);
         }
       } catch (e) {
-        console.error('BLE advertiser init error:', e);
+        console.error("BLE advertiser init error:", e);
       }
     }
 
@@ -412,7 +552,7 @@ export const BleProvider: React.FC<BleProviderProps> = ({ children }) => {
 export const useBle = (): BleContextType => {
   const context = useContext(BleContext);
   if (context === undefined) {
-    throw new Error('useBle must be used within a BleProvider');
+    throw new Error("useBle must be used within a BleProvider");
   }
   return context;
 };

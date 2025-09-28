@@ -25,6 +25,7 @@
 Our UI/UX is built with a cutting-edge **Neo-Brutalism** design system featuring:
 
 ### **🎯 Design Principles**
+
 - **BOLD TYPOGRAPHY** - Extra heavy fonts (800-900 weight)
 - **HIGH CONTRAST** - Pure black backgrounds with electric colors
 - **SHARP EDGES** - Minimal border radius for brutal impact
@@ -32,6 +33,7 @@ Our UI/UX is built with a cutting-edge **Neo-Brutalism** design system featuring
 - **ELECTRIC COLORS** - Neon green (#00FF88), electric pink (#FF0080), cyan (#00FFFF)
 
 ### **🚀 Components**
+
 - **NeoBrutalButton** - Bold action buttons with colored shadows
 - **NeoBrutalCard** - High-contrast cards with thick borders
 - **NeoBrutalHeader** - Impact typography with uppercase styling
@@ -43,22 +45,26 @@ Our UI/UX is built with a cutting-edge **Neo-Brutalism** design system featuring
 ## 🛠 **TECH STACK**
 
 ### **Frontend**
+
 - **React Native** with Expo Router
 - **React Native Paper** (Material Design 3)
 - **TypeScript** for type safety
 - **Custom Neo-Brutalism Design System**
 
 ### **Blockchain**
+
 - **Ethereum** integration with Web3
 - **ECDSA** cryptographic signatures
 - **Multi-chain** transaction support
 
 ### **Networking**
+
 - **Mesh Network** architecture
 - **Bluetooth Low Energy** for device discovery
 - **Offline-first** transaction queuing
 
 ### **Security**
+
 - **Non-custodial** wallet management
 - **Client-side** key generation
 - **Zero-trust** architecture
@@ -68,6 +74,7 @@ Our UI/UX is built with a cutting-edge **Neo-Brutalism** design system featuring
 ## 🚀 **GETTING STARTED**
 
 ### **Prerequisites**
+
 ```bash
 Node.js 18+
 React Native CLI
@@ -75,6 +82,7 @@ Android Studio / Xcode
 ```
 
 ### **Installation**
+
 ```bash
 # Clone the repository
 git clone https://github.com/your-team/nonet-eth-delhi
@@ -100,6 +108,7 @@ npm run ios
 ## 📱 **APP ARCHITECTURE**
 
 ### **Core Screens**
+
 1. **Welcome Screen** - Neo-Brutalism onboarding with hackathon branding
 2. **Wallet Management** - Secure key generation and management
 3. **QR Scanner** - Scan recipient addresses with camera
@@ -107,6 +116,7 @@ npm run ios
 5. **Mesh Network** - Discover and connect to nearby devices
 
 ### **Key Components**
+
 - **WalletContext** - Global wallet state management
 - **Neo-Brutalism Theme** - Consistent design system
 - **Transaction Signing** - ECDSA cryptographic operations
@@ -117,15 +127,17 @@ npm run ios
 ## 🎨 **DESIGN SHOWCASE**
 
 ### **Color Palette**
+
 ```typescript
-PRIMARY: '#00FF88'    // Electric Green
-SECONDARY: '#FF0080'  // Electric Pink  
-ACCENT: '#00FFFF'     // Cyan
-BACKGROUND: '#000000' // Pure Black
-TEXT: '#FFFFFF'       // Pure White
+PRIMARY: "#00FF88"; // Electric Green
+SECONDARY: "#FF0080"; // Electric Pink
+ACCENT: "#00FFFF"; // Cyan
+BACKGROUND: "#000000"; // Pure Black
+TEXT: "#FFFFFF"; // Pure White
 ```
 
 ### **Typography Scale**
+
 ```typescript
 HERO: 64px     // Hero titles
 DISPLAY: 48px  // Large displays
@@ -135,6 +147,7 @@ BODY: 16px     // Body text
 ```
 
 ### **Shadow System**
+
 ```typescript
 BRUTAL: offset(4,4) + colored shadows
 BRUTAL_ALT: offset(6,6) + electric pink
@@ -146,6 +159,7 @@ BRUTAL_HEAVY: offset(8,8) + cyan
 ## 🏆 **HACKATHON HIGHLIGHTS**
 
 ### **Innovation Points**
+
 - **Offline-First Architecture** - Works without internet
 - **Mesh Network Integration** - P2P device communication
 - **Neo-Brutalism Design** - Cutting-edge visual design
@@ -153,6 +167,7 @@ BRUTAL_HEAVY: offset(8,8) + cyan
 - **Mobile-Native Experience** - Optimized for mobile devices
 
 ### **Technical Achievements**
+
 - **Custom Design System** - Reusable Neo-Brutalism components
 - **Cryptographic Security** - ECDSA signature implementation
 - **Offline Transaction Queue** - Smart transaction management
@@ -185,44 +200,22 @@ BRUTAL_HEAVY: offset(8,8) + cyan
 ## 🌟 **FUTURE ROADMAP**
 
 ### **Phase 1** - Core Features ✅
+
 - [x] Wallet creation and management
 - [x] Transaction signing and verification
 - [x] Neo-Brutalism design system
 - [x] QR code scanning
 
 ### **Phase 2** - Mesh Network 🚧
+
 - [ ] Bluetooth mesh networking
 - [ ] Offline transaction propagation
 - [ ] Device discovery and pairing
 - [ ] Network topology visualization
 
 ### **Phase 3** - Advanced Features 📋
+
 - [ ] Multi-signature support
 - [ ] DeFi protocol integration
 - [ ] Cross-chain bridges
 - [ ] Advanced analytics
-
----
-
-## 👥 **TEAM**
-
-Built with ❤️ for **ETH Delhi 2024** by passionate blockchain developers who believe in the future of decentralized, offline-first applications.
-
----
-
-## 📄 **LICENSE**
-
-MIT License - Feel free to fork, modify, and contribute!
-
----
-
-## 🔗 **LINKS**
-
-- **GitHub**: [Repository Link]
-- **Demo Video**: [YouTube Link]
-- **Presentation**: [Slides Link]
-- **Live Demo**: [App Store / Play Store]
-
----
-
-**🚀 Built for ETH Delhi 2024 - The Future of Offline Crypto is Here! 🚀**

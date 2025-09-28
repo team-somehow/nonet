@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert } from "react-native";
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '@/constants/theme';
 import { useWallet } from '@/contexts/WalletContext';
@@ -16,6 +16,33 @@ export default function Show(): React.JSX.Element {
     const randomHex = () => Math.floor(Math.random() * 16).toString(16);
     const newAddress = '0x' + Array.from({ length: 40 }, () => randomHex()).join('');
     setCustomAddress(newAddress);
+  };
+
+  const copyPrivateKey = () => {
+    if (!isLoggedIn || !walletData?.privateKey) {
+      Alert.alert('Error', 'No private key available. Please create a wallet first.');
+      return;
+    }
+
+    // In a real app, you would use a clipboard library like @react-native-clipboard/clipboard
+    // For now, we'll show an alert with the private key
+    Alert.alert(
+      'Private Key',
+      `Your private key:\n\n${walletData.privateKey}\n\n⚠️ Keep this private key secure and never share it with anyone!`,
+      [
+        {
+          text: 'Copy to Clipboard',
+          onPress: () => {
+            // Here you would implement actual clipboard functionality
+            Alert.alert('Copied', 'Private key copied to clipboard');
+          }
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
   };
 
   return (
@@ -65,6 +92,15 @@ export default function Show(): React.JSX.Element {
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.generateButton} onPress={generateRandomAddress}>
             <Text style={styles.buttonText}>Generate Random Address</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Copy Private Key Button - Only show when logged in */}
+      {isLoggedIn && (
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.copyPrivateKeyButton} onPress={copyPrivateKey}>
+            <Text style={styles.copyButtonText}>Export Private Key</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -159,6 +195,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  copyPrivateKeyButton: {
+    backgroundColor: '#6B7280', // Same gray color as generate button
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  copyButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',

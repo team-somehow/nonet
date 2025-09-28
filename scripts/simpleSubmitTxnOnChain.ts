@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 
 // --- Configuration ---
 const RPC_URL = "https://testnet.evm.nodes.onflow.org";
-const CONTRACT_ADDRESS = "0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01"; // Update with your deployed simple contract address
+const CONTRACT_ADDRESS = "0xc7a5Fd47Bc5725600E03124263056C897fb96b6c"; // Update with your deployed simple contract address
 
 // --- Contract ABI ---
 // ABI for the simplified transferWithAuthorization function
@@ -28,7 +28,7 @@ const contractABI = [
 // Replace this with the output from simpleTransferWithAuthorization.ts
 const signedTxData = {
   from: "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c",
-  to: "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c",
+  to: "0x09fAF606dC609687792847662B0Af4E4C4F4995B",
   value: "1000000000000000000",
   validAfter: "0",
   validBefore: "1759016811",

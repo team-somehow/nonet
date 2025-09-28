@@ -244,7 +244,7 @@ Each device maintains a master state of all active messages:
 #### Smart Contract Addresses
 
 - **Hedera Testnet**: [`0xc6C46289fA5FdC583Cdb5e5C2900af4333423787`](https://hashscan.io/testnet/contract/0.0.6915692)
-- **Flow Testnet**: [`0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01`](https://evm-testnet.flowscan.io/address/0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01)
+- **Flow Testnet**: [`0xc7a5Fd47Bc5725600E03124263056C897fb96b6c`](https://evm-testnet.flowscan.io/address/0xc7a5Fd47Bc5725600E03124263056C897fb96b6c)
 
 #### EIP-3009 Meta-Transactions
 

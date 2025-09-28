@@ -103,7 +103,7 @@ const generateRealWallet = (): {
 
   console.log("From Address (Token Owner):", fromAddress);
 
-  const TOKEN_CONTRACT_ADDRESS = "0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01"; // Flow EVM testnet contract
+  const TOKEN_CONTRACT_ADDRESS = "0xc7a5Fd47Bc5725600E03124263056C897fb96b6c"; // Flow EVM testnet contract
   const tokenContractAddress = TOKEN_CONTRACT_ADDRESS;
 
   const toAddress = "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c"; // Recipient address (your relayer address)

@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 
 // Configuration
 const RPC_URL = "https://testnet.evm.nodes.onflow.org";
-const CONTRACT_ADDRESS = "0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01";
+const CONTRACT_ADDRESS = "0xc7a5Fd47Bc5725600E03124263056C897fb96b6c";
 const WALLET_ADDRESS = "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c";
 
 // ERC-20 ABI for balance checking

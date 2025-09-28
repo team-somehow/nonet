@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 // --- Configuration ---
 // Sepolia RPC endpoint. You can get one for free from services like Infura or Alchemy.
 const RPC_URL = "https://testnet.evm.nodes.onflow.org";
-const CONTRACT_ADDRESS = "0x8569641E34E1f9A985D85104f2C55c8c5c0cDb01";
+const CONTRACT_ADDRESS = "0xc7a5Fd47Bc5725600E03124263056C897fb96b6c";
 
 // --- Contract ABI ---
 // A minimal ABI containing only the function we need to call.
@@ -32,10 +32,10 @@ const signedTxData = {
   to: "0x9f1C289Cc26fd335bfF6cF05947787994248CF1c",
   value: "1000000000000000000",
   validAfter: "0",
-  validBefore: "1759016811",
-  nonce: "0x74926be4e89f5588490a121419f51f0b308017ead435dd0786f9face9eb9c138",
+  validBefore: "1759025441",
+  nonce: "0x32fc8f26db1571f8ab34f3c886a53a4bb9afe72dbc3b0acdfcaf9e211d021288",
   signature:
-    "0xc5b8bde480565fbe462642afede2f196db468c602c919ffb1521ff4273415892654aacddd94427b0c85bf1824013dfa41b0352cbaa20793f2f175b44e16a61b51b",
+    "0x02b2d5892d237ba8721ce46464164fa55a531da85cb17225c483bf18a1f0b8a214760a6f1cea4ed9dc6124d718e5a719ea428d155f436e84f613148133731ad71c",
 };
 // Hellloooo pettiboy here
 // i know private key hardcode nahi karni chahiye par ispe kuch nahi hai
